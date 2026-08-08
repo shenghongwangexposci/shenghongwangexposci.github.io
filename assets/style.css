@@ -1,0 +1,247 @@
+/* Shared theme — matches the Fabs Predictor tool's visual language */
+:root{
+  --bg-0:#f7f4ec;
+  --bg-1:#efe9d9;
+  --panel:#fffdf8;
+  --panel-edge:#e2dcc7;
+  --ink:#26332e;
+  --ink-dim:#6b7a73;
+  --amber:#b5772f;
+  --amber-dim:#d9a45c;
+  --teal:#2f7d68;
+  --red:#a83f36;
+  --grid:#e8e2d1;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(ellipse at 20% -10%, #eef2ec 0%, transparent 55%),
+    radial-gradient(ellipse at 100% 110%, #f3ecdd 0%, transparent 50%),
+    var(--bg-0);
+  color:var(--ink);
+  font-family:'IBM Plex Sans', sans-serif;
+  min-height:100vh;
+}
+a{color:var(--teal); text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+.wrap{max-width:920px;margin:0 auto;padding:0 20px;}
+
+/* ---- Nav ---- */
+nav.topnav{
+  border-bottom:1px solid var(--panel-edge);
+  background:rgba(247,244,236,.85);
+  backdrop-filter:blur(6px);
+  position:sticky;
+  top:0;
+  z-index:10;
+}
+nav.topnav .navrow{
+  max-width:920px;
+  margin:0 auto;
+  padding:16px 20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:12px;
+}
+nav.topnav .brand{
+  font-family:'Newsreader', serif;
+  font-weight:500;
+  font-size:18px;
+  color:var(--ink);
+  letter-spacing:-.01em;
+}
+nav.topnav .brand em{font-style:italic; color:var(--amber);}
+nav.topnav .links{
+  display:flex;
+  gap:22px;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:12.5px;
+  letter-spacing:.04em;
+}
+nav.topnav .links a{color:var(--ink-dim);}
+nav.topnav .links a:hover, nav.topnav .links a.active{color:var(--teal); text-decoration:none;}
+
+main{padding:48px 0 72px;}
+
+header.page-head{margin-bottom:36px;}
+.eyebrow{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:12px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--teal);
+  margin:0 0 10px;
+}
+h1{
+  font-family:'Newsreader', serif;
+  font-weight:500;
+  font-size:clamp(32px,5vw,48px);
+  line-height:1.05;
+  margin:0 0 14px;
+  letter-spacing:-.01em;
+}
+h1 em{font-style:italic;color:var(--amber);}
+h2{
+  font-family:'Newsreader', serif;
+  font-weight:500;
+  font-size:clamp(22px,3vw,28px);
+  margin:0 0 18px;
+  letter-spacing:-.01em;
+}
+h3{
+  font-family:'IBM Plex Sans', sans-serif;
+  font-weight:600;
+  font-size:16px;
+  margin:0 0 4px;
+  color:var(--ink);
+}
+p.sub, p.lede{
+  color:var(--ink-dim);
+  font-size:15.5px;
+  line-height:1.65;
+  max-width:640px;
+  margin:0;
+}
+
+.board{
+  background:linear-gradient(180deg,var(--panel),#faf6ec);
+  border:1px solid var(--panel-edge);
+  border-radius:14px;
+  padding:36px;
+  box-shadow:0 24px 48px -30px rgba(38,51,46,.14), inset 0 1px 0 rgba(255,255,255,.7);
+  position:relative;
+  overflow:hidden;
+  margin-bottom:28px;
+}
+.board::before{
+  content:"";
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:28px 28px;
+  opacity:.6;
+  pointer-events:none;
+}
+.board > *{position:relative;}
+
+section{margin-bottom:44px;}
+section .tag{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:11px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--teal);
+  margin:0 0 14px;
+}
+
+/* ---- Links row / buttons ---- */
+.linkrow{display:flex; gap:12px; flex-wrap:wrap; margin-top:22px;}
+.btn{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:12.5px;
+  letter-spacing:.03em;
+  border-radius:8px;
+  padding:10px 18px;
+  cursor:pointer;
+  border:1px solid var(--panel-edge);
+  background:var(--teal);
+  color:var(--bg-0);
+  font-weight:600;
+  display:inline-block;
+}
+.btn:hover{text-decoration:none; filter:brightness(1.08);}
+.btn.secondary{background:var(--bg-1); color:var(--ink);}
+.btn.ghost{background:transparent; color:var(--ink-dim);}
+
+/* ---- Timeline / experience ---- */
+.entry{
+  padding:18px 0;
+  border-bottom:1px solid var(--grid);
+}
+.entry:last-child{border-bottom:none;}
+.entry .row{
+  display:flex; justify-content:space-between; align-items:baseline;
+  gap:12px; flex-wrap:wrap;
+}
+.entry .org{color:var(--amber); font-weight:600; font-size:13.5px;}
+.entry .date{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:11.5px;
+  color:var(--ink-dim);
+  white-space:nowrap;
+}
+.entry .loc{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:11px;
+  color:#8a978f;
+  margin-top:2px;
+}
+.entry ul{margin:10px 0 0; padding-left:18px; color:var(--ink-dim); font-size:14px; line-height:1.6;}
+.entry ul li{margin-bottom:6px;}
+
+/* ---- Card grid (tools) ---- */
+.cardgrid{display:grid; grid-template-columns:1fr; gap:20px;}
+.card{
+  background:var(--bg-1);
+  border:1px solid var(--panel-edge);
+  border-radius:12px;
+  padding:26px;
+}
+.card h3{font-family:'Newsreader', serif; font-size:20px; font-weight:500; margin-bottom:8px;}
+.card p{color:var(--ink-dim); font-size:14px; line-height:1.6; margin:0 0 16px;}
+.card .meta{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:11px;
+  color:#8a978f;
+  margin-top:14px;
+}
+
+/* ---- Publications ---- */
+.pub-year{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:12px;
+  letter-spacing:.1em;
+  color:var(--teal);
+  margin:32px 0 14px;
+}
+.pub-year:first-child{margin-top:0;}
+.pub{
+  padding:12px 0;
+  border-bottom:1px solid var(--grid);
+  font-size:14px;
+  line-height:1.6;
+  color:var(--ink-dim);
+}
+.pub:last-child{border-bottom:none;}
+.pub .authors{color:var(--ink);}
+.pub .authors b{color:var(--amber); font-weight:600;}
+.pub .venue{font-style:italic;}
+.pub .cover{
+  display:inline-block;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:9.5px;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  color:var(--bg-0);
+  background:var(--amber);
+  border-radius:999px;
+  padding:1px 8px;
+  margin-left:8px;
+  vertical-align:middle;
+}
+
+footer{
+  max-width:920px;
+  margin:0 auto;
+  padding:28px 20px 48px;
+  color:#8a978f;
+  font-size:12.5px;
+  line-height:1.7;
+  border-top:1px solid var(--panel-edge);
+}
+footer a{color:var(--teal);}

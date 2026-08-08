@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fabs Predictor — GIT Absorption Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#f7f4ec;
+    --bg-1:#efe9d9;
+    --panel:#fffdf8;
+    --panel-edge:#e2dcc7;
+    --ink:#26332e;
+    --ink-dim:#6b7a73;
+    --amber:#b5772f;
+    --amber-dim:#d9a45c;
+    --teal:#2f7d68;
+    --red:#a83f36;
+    --grid:#e8e2d1;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, #eef2ec 0%, transparent 55%),
+      radial-gradient(ellipse at 100% 110%, #f3ecdd 0%, transparent 50%),
+      var(--bg-0);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    padding:48px 20px 72px;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+
+  header{margin-bottom:36px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--teal);
+    margin:0 0 10px;
+  }
+  h1{
+    font-family:'Newsreader', serif;
+    font-weight:500;
+    font-size:clamp(32px,5vw,48px);
+    line-height:1.05;
+    margin:0 0 14px;
+    letter-spacing:-.01em;
+  }
+  h1 em{font-style:italic;color:var(--amber);}
+  .sub{
+    color:var(--ink-dim);
+    font-size:15.5px;
+    line-height:1.6;
+    max-width:640px;
+    margin:0;
+  }
+  .sub a{color:var(--teal);}
+
+  .board{
+    background:linear-gradient(180deg,var(--panel),#faf6ec);
+    border:1px solid var(--panel-edge);
+    border-radius:14px;
+    padding:36px;
+    box-shadow:0 24px 48px -30px rgba(38,51,46,.14), inset 0 1px 0 rgba(255,255,255,.7);
+    position:relative;
+    overflow:hidden;
+  }
+  .board::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:28px 28px;
+    opacity:.6;
+    pointer-events:none;
+  }
+
+  .grid2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:32px;
+    position:relative;
+  }
+  @media (max-width:720px){ .grid2{grid-template-columns:1fr;} }
+
+  .field{margin-bottom:26px;}
+  .field label{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:.04em;
+    color:var(--ink-dim);
+    margin-bottom:10px;
+  }
+  .field label .name{color:var(--ink); font-weight:500;}
+  .field label .val{
+    color:var(--amber);
+    font-size:14px;
+    font-weight:600;
+  }
+  input[type=range]{
+    -webkit-appearance:none;
+    width:100%;
+    height:4px;
+    border-radius:2px;
+    background:linear-gradient(90deg, var(--teal), var(--amber-dim), var(--red));
+    outline:none;
+    margin:6px 0 8px;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:18px; height:18px;
+    border-radius:50%;
+    background:var(--ink);
+    border:3px solid var(--bg-0);
+    box-shadow:0 0 0 1px var(--amber);
+    cursor:pointer;
+    margin-top:-1px;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:18px; height:18px;
+    border-radius:50%;
+    background:var(--ink);
+    border:3px solid var(--bg-0);
+    box-shadow:0 0 0 1px var(--amber);
+    cursor:pointer;
+  }
+  .numrow{display:flex; gap:8px; align-items:center;}
+  .numrow input[type=number]{
+    width:100%;
+    background:var(--bg-1);
+    border:1px solid var(--panel-edge);
+    border-radius:7px;
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:14px;
+    padding:8px 10px;
+  }
+  .numrow input[type=number]:focus{outline:2px solid var(--teal); outline-offset:1px;}
+  .unit{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-dim); white-space:nowrap;}
+  .range-caption{
+    display:flex; justify-content:space-between;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:#8a978f;
+  }
+
+  .readout{
+    position:relative;
+    margin-top:8px;
+    padding-top:8px;
+    border-top:1px dashed var(--panel-edge);
+  }
+  .readout-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink-dim);
+    margin-bottom:6px;
+  }
+  .keep-case{text-transform:none;}
+  .fabs-value{
+    font-family:'Newsreader', serif;
+    font-weight:500;
+    font-size:clamp(56px,9vw,92px);
+    line-height:1;
+    letter-spacing:-.02em;
+    color:var(--ink);
+  }
+  .fabs-value .pct{font-size:.42em; color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; margin-left:6px;}
+
+  .bar-outer{
+    width:100%; height:14px;
+    background:var(--bg-1);
+    border:1px solid var(--panel-edge);
+    border-radius:8px;
+    overflow:hidden;
+    margin:16px 0 6px;
+  }
+  .bar-inner{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--teal), var(--amber));
+    transition:width .35s ease;
+  }
+  .bins{
+    display:flex; font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8a978f;
+    justify-content:space-between;
+  }
+
+  .regime{
+    margin-top:22px;
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+    padding:14px 16px;
+    background:rgba(47,125,104,.07);
+    border:1px solid var(--panel-edge);
+    border-radius:9px;
+  }
+  .regime .dot{
+    width:9px; height:9px; border-radius:50%;
+    margin-top:5px; flex:none;
+    background:var(--teal);
+    box-shadow:0 0 10px var(--teal);
+  }
+  .regime.warn .dot{background:var(--red); box-shadow:0 0 10px var(--red);}
+  .regime.mix .dot{background:var(--amber); box-shadow:0 0 10px var(--amber);}
+  .regime-text b{color:var(--ink); font-weight:600;}
+  .regime-text{font-size:13.5px; color:var(--ink-dim); line-height:1.55;}
+
+  .spectrum{
+    position:relative;
+    margin-top:26px;
+  }
+  .spectrum-track{
+    position:relative;
+    height:34px;
+    border-radius:8px;
+    background:linear-gradient(90deg,
+      #2a6b60 0%, #2a6b60 35%,
+      #6b5a2e 35%, #6b5a2e 65%,
+      #6b2e2e 65%, #6b2e2e 100%);
+    border:1px solid var(--panel-edge);
+  }
+  .spectrum-labels{
+    display:flex; justify-content:space-between;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px; color:var(--ink-dim);
+    margin-top:6px;
+  }
+  .spectrum-marker{
+    position:absolute;
+    top:-8px;
+    width:2px;
+    height:50px;
+    background:var(--ink);
+    box-shadow:0 0 0 1.5px var(--panel), 0 1px 4px rgba(38,51,46,.35);
+    transform:translateX(-1px);
+  }
+  .spectrum-marker::after{
+    content:"";
+    position:absolute;
+    top:-6px; left:50%;
+    transform:translateX(-50%);
+    width:0; height:0;
+    border-left:5px solid transparent;
+    border-right:5px solid transparent;
+    border-top:6px solid var(--ink);
+    filter:drop-shadow(0 0 1.5px var(--panel));
+  }
+
+  .formula{
+    margin-top:34px;
+    padding-top:22px;
+    border-top:1px solid var(--panel-edge);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--ink-dim);
+    line-height:1.9;
+    overflow-x:auto;
+  }
+  .formula .tag{color:var(--teal); letter-spacing:.08em; text-transform:uppercase; font-size:10.5px; display:block; margin-bottom:8px;}
+
+  footer{
+    max-width:920px;
+    margin:28px auto 0;
+    color:#8a978f;
+    font-size:12.5px;
+    line-height:1.7;
+  }
+  footer a{color:var(--teal);}
+
+  .tabs{
+    display:flex; gap:8px;
+    margin-bottom:28px;
+    position:relative;
+  }
+  .tab-btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:.04em;
+    color:var(--ink-dim);
+    background:var(--bg-1);
+    border:1px solid var(--panel-edge);
+    border-radius:8px;
+    padding:9px 18px;
+    cursor:pointer;
+  }
+  .tab-btn.active{
+    color:var(--bg-0);
+    background:var(--teal);
+    border-color:var(--teal);
+    font-weight:600;
+  }
+  .mode-panel{display:none; position:relative;}
+  .mode-panel.active{display:block;}
+
+  .batch-intro{
+    color:var(--ink-dim);
+    font-size:13.5px;
+    line-height:1.6;
+    margin:0 0 14px;
+  }
+  .batch-intro code{
+    font-family:'IBM Plex Mono', monospace;
+    background:var(--bg-1);
+    border:1px solid var(--panel-edge);
+    border-radius:4px;
+    padding:1px 6px;
+    color:var(--amber);
+    font-size:12px;
+  }
+  textarea#batchInput{
+    width:100%;
+    min-height:150px;
+    background:var(--bg-1);
+    border:1px solid var(--panel-edge);
+    border-radius:9px;
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    line-height:1.6;
+    padding:14px;
+    resize:vertical;
+  }
+  textarea#batchInput:focus{outline:2px solid var(--teal); outline-offset:1px;}
+
+  .batch-actions{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    margin:14px 0 6px;
+    flex-wrap:wrap;
+  }
+  .btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:.03em;
+    border-radius:8px;
+    padding:10px 18px;
+    cursor:pointer;
+    border:1px solid var(--panel-edge);
+    background:var(--teal);
+    color:var(--bg-0);
+    font-weight:600;
+  }
+  .btn.secondary{
+    background:var(--bg-1);
+    color:var(--ink);
+  }
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+  .batch-count{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--ink-dim);
+  }
+
+  .batch-table-wrap{
+    margin-top:18px;
+    border:1px solid var(--panel-edge);
+    border-radius:10px;
+    overflow:hidden;
+  }
+  table#batchTable{
+    width:100%;
+    border-collapse:collapse;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+  }
+  table#batchTable thead th{
+    text-align:left;
+    background:var(--bg-1);
+    color:var(--ink-dim);
+    font-weight:500;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    font-size:10.5px;
+    padding:10px 12px;
+    border-bottom:1px solid var(--panel-edge);
+  }
+  table#batchTable td{
+    padding:9px 12px;
+    border-bottom:1px solid var(--grid);
+    color:var(--ink);
+    white-space:nowrap;
+  }
+  table#batchTable tbody tr:last-child td{border-bottom:none;}
+  table#batchTable tbody tr:hover{background:rgba(47,125,104,.06);}
+  table#batchTable td.name-cell{
+    color:var(--ink-dim);
+    max-width:180px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  table#batchTable td.fabs-cell{color:var(--amber); font-weight:600;}
+  table#batchTable td.err-cell{color:var(--red);}
+  .regime-pill{
+    display:inline-block;
+    font-size:10px;
+    padding:2px 8px;
+    border-radius:999px;
+    letter-spacing:.03em;
+  }
+  .regime-pill.perm{background:rgba(47,125,104,.13); color:var(--teal);}
+  .regime-pill.mix{background:rgba(181,119,47,.13); color:var(--amber);}
+  .regime-pill.part{background:rgba(168,63,54,.13); color:var(--red);}
+
+  .batch-empty{
+    color:#8a978f;
+    font-size:13px;
+    padding:20px 4px;
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow"><a href="../tools.html" style="color:inherit; text-decoration:none;">&larr; Shenghong Wang</a> &middot; Screening-level toxicokinetics</p>
+    <h1>Fraction <em>absorbed</em> calculator</h1>
+    <p class="sub">Predicts oral fraction absorbed (F<sub>abs</sub>) in the human GI tract from octanol&ndash;water partitioning (K<sub>OW</sub>, pH 7.4) and Caco-2 apparent permeability (P<sub>app,Caco-2</sub>), following the mechanistic model in Wang, Zhang, Li &amp; Li, <em style="font-style:italic">Environment International</em> 193 (2024) 109108.</p>
+  </header>
+
+  <div class="board">
+
+    <div class="tabs">
+      <button class="tab-btn active" id="tabSingle" type="button">Single chemical</button>
+      <button class="tab-btn" id="tabBatch" type="button">Batch</button>
+    </div>
+
+    <div class="mode-panel active" id="panelSingle">
+    <div class="grid2">
+      <div class="col">
+        <div class="field">
+          <label><span class="name">K<sub>OW</sub> (pH 7.4)</span><span class="val" id="kowLogVal">10<sup>0.0</sup></span></label>
+          <input type="range" id="kowSlider" min="-9" max="10" step="0.05" value="0">
+          <div class="range-caption"><span>10⁻⁹</span><span>10¹⁰</span></div>
+          <div class="numrow" style="margin-top:10px;">
+            <input type="number" id="kowNum" value="1" step="any">
+            <span class="unit">unitless</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label><span class="name">P<sub>app,Caco-2</sub></span><span class="val" id="papLogVal">10<sup>-5.0</sup></span></label>
+          <input type="range" id="papSlider" min="-8" max="-3" step="0.02" value="-5">
+          <div class="range-caption"><span>10⁻⁸</span><span>10⁻³</span></div>
+          <div class="numrow" style="margin-top:10px;">
+            <input type="number" id="papNum" value="0.00001" step="any">
+            <span class="unit">cm/s</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="readout">
+          <div class="readout-label">Predicted <span class="keep-case">F<sub>abs</sub></span></div>
+          <div class="fabs-value" id="fabsBig">&mdash;<span class="pct">%</span></div>
+          <div class="bar-outer"><div class="bar-inner" id="fabsBar"></div></div>
+          <div class="bins"><span>very low</span><span>low</span><span>moderate</span><span>high</span><span>very high</span></div>
+        </div>
+
+        <div class="regime" id="regimeBox">
+          <div class="dot"></div>
+          <div class="regime-text" id="regimeText">Adjust the sliders to see the absorption regime.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spectrum">
+      <div class="spectrum-track">
+        <div class="spectrum-marker" id="marker" style="left:47.5%"></div>
+      </div>
+      <div class="spectrum-labels">
+        <span>permeability-limited (K<sub>OW</sub> &lt; 10⁶)</span>
+        <span>mixed (10⁶&ndash;10⁸)</span>
+        <span>partitioning-limited (K<sub>OW</sub> &gt; 10⁸)</span>
+      </div>
+    </div>
+    </div>
+
+    <div class="mode-panel" id="panelBatch">
+      <p class="batch-intro">Paste one chemical per line as <code>name, Kow, Papp_Caco-2</code> (Papp in cm/s). A header row is optional and will be detected automatically.</p>
+      <textarea id="batchInput" spellcheck="false" placeholder="Diazepam, 2.82e1, 4.5e-5
+Atenolol, 1.5, 3.2e-6
+Digoxin, 794, 1.1e-6"></textarea>
+      <div class="batch-actions">
+        <button class="btn" id="batchRun" type="button">Calculate all</button>
+        <button class="btn secondary" id="batchDownload" type="button" disabled>Download CSV</button>
+        <button class="btn secondary" id="batchClear" type="button">Clear</button>
+        <span class="batch-count" id="batchCount"></span>
+      </div>
+      <div class="batch-table-wrap">
+        <table id="batchTable">
+          <thead>
+            <tr><th>Name</th><th>K<sub>OW</sub></th><th><span class="keep-case">P<sub>app,Caco-2</sub></span> (cm/s)</th><th><span class="keep-case">F<sub>abs</sub></span></th><th>Regime</th></tr>
+          </thead>
+          <tbody id="batchBody"></tbody>
+        </table>
+        <div class="batch-empty" id="batchEmpty">No results yet — paste chemicals above and click Calculate all.</div>
+      </div>
+    </div>
+
+    <div class="formula">
+      <span class="tag">Equation</span>
+      F<sub>abs</sub> = 1 &minus; exp( &minus;16457 / { [(1&minus;2.40×10⁻⁹) + 2.40×10⁻⁹·K<sub>OW</sub>] · [ (1/P<sub>app,Caco-2</sub> &minus; 1/0.00153)<sup>0.346</sup> / 0.0075 + 1/0.00115 ] } )
+    </div>
+  </div>
+
+  <footer>
+    Fitted on 105 chemicals (training set, r = 0.76) and evaluated on 71 chemicals (test set, r = 0.84) spanning K<sub>OW</sub> from 10⁻⁸·⁸ to 10⁸·⁷ and P<sub>app,Caco-2</sub> from 10⁻⁷·⁶ to 10⁻⁴·⁰ cm/s. Source: Wang, S., Zhang, Z., Li, D., Li, L. (2024). Elucidating impacts of partitioning and transmembrane permeability on absorption of chemicals in human gastrointestinal tract. <a href="https://doi.org/10.1016/j.envint.2024.109108" target="_blank" rel="noopener">doi.org/10.1016/j.envint.2024.109108</a>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const kowSlider = document.getElementById('kowSlider');
+  const kowNum = document.getElementById('kowNum');
+  const kowLogVal = document.getElementById('kowLogVal');
+  const papSlider = document.getElementById('papSlider');
+  const papNum = document.getElementById('papNum');
+  const papLogVal = document.getElementById('papLogVal');
+  const fabsBig = document.getElementById('fabsBig');
+  const fabsBar = document.getElementById('fabsBar');
+  const regimeBox = document.getElementById('regimeBox');
+  const regimeText = document.getElementById('regimeText');
+  const marker = document.getElementById('marker');
+
+  const PABL = 0.00153;
+  const PABLprime = 0.00115;
+  const m = 0.0075;
+  const n = 0.346;
+  const vO = 2.40e-9;
+  const K = 16457;
+
+  function computeFabs(kow, papp){
+    // guard: papp must be strictly less than PABL for a real, positive base
+    const inv = 1/papp - 1/PABL;
+    if (!isFinite(inv) || inv <= 0) return null;
+    const term1 = (1 - vO) + vO * kow;
+    // 1/Pintrinsic = (inv)^n / m  (per Eq. 6 derivation: Pintrinsic = m * Pintrinsic'^n, Pintrinsic' = 1/inv)
+    const term2 = Math.pow(inv, n)/m + 1/PABLprime;
+    const exponent = -K / (term1 * term2);
+    return 1 - Math.exp(exponent);
+  }
+
+  function fmtSci(v){
+    if (v === 0) return "0";
+    const e = Math.floor(Math.log10(Math.abs(v)));
+    const mant = v / Math.pow(10, e);
+    return mant.toFixed(2) + '×10' + supersc(e);
+  }
+  function supersc(n){
+    const map = {'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
+    return String(n).split('').map(c=>map[c]!==undefined?map[c]:c).join('');
+  }
+
+  function updateFromLogs(logKow, logPap){
+    const kow = Math.pow(10, logKow);
+    const papp = Math.pow(10, logPap);
+    kowNum.value = fmtSciPlain(kow);
+    papNum.value = fmtSciPlain(papp);
+    kowLogVal.innerHTML = '10<sup>' + logKow.toFixed(2) + '</sup>';
+    papLogVal.innerHTML = '10<sup>' + logPap.toFixed(2) + '</sup>';
+    render(kow, papp, logKow);
+  }
+
+  function fmtSciPlain(v){
+    // give a reasonably clean number for the input box
+    if (v >= 0.001 && v < 100000) {
+      return parseFloat(v.toPrecision(4)).toString();
+    }
+    return v.toExponential(3);
+  }
+
+  function render(kow, papp, logKow){
+    const f = computeFabs(kow, papp);
+    if (f === null){
+      fabsBig.innerHTML = 'n/a<span class="pct">invalid</span>';
+      fabsBar.style.width = '0%';
+      regimeBox.className = 'regime warn';
+      regimeText.innerHTML = '<b>Out of domain.</b> P<sub>app,Caco-2</sub> must be below the fitted ABL permeability limit (~0.00153 cm/s) for the model to return a defined value.';
+      return;
+    }
+    const pct = Math.max(0, Math.min(100, f*100));
+    fabsBig.innerHTML = pct.toFixed(1) + '<span class="pct">%</span>';
+    fabsBar.style.width = pct.toFixed(1) + '%';
+
+    // regime classification, based on Section 4.3 thresholds
+    let cls = 'regime', text = '';
+    if (kow < 1e6){
+      cls += '';
+      text = '<b>Transmembrane permeability-limited.</b> At this K<sub>OW</sub>, F<sub>abs</sub> is governed almost entirely by P<sub>app,Caco-2</sub> &mdash; K<sub>OW</sub> has little influence here.';
+    } else if (kow <= 1e8){
+      cls += ' mix';
+      text = '<b>Mixed regime.</b> Both K<sub>OW</sub> and P<sub>app,Caco-2</sub> meaningfully affect F<sub>abs</sub> in this range &mdash; reliable estimates of both are needed.';
+    } else {
+      cls += '';
+      text = '<b>Partitioning-limited (solubility-limited).</b> F<sub>abs</sub> is now driven by K<sub>OW</sub>, since the chemical struggles to partition into gut fluid; P<sub>app,Caco-2</sub> barely matters here.';
+    }
+    regimeBox.className = cls;
+    regimeText.innerHTML = text;
+
+    // marker position across full slider domain (-9 to 10 on log Kow)
+    const minL=-9, maxL=10;
+    const clampedLog = Math.max(minL, Math.min(maxL, logKow));
+    const posPct = ((clampedLog - minL)/(maxL-minL))*100;
+    marker.style.left = posPct.toFixed(1) + '%';
+  }
+
+  kowSlider.addEventListener('input', () => {
+    updateFromLogs(parseFloat(kowSlider.value), parseFloat(papSlider.value));
+  });
+  papSlider.addEventListener('input', () => {
+    updateFromLogs(parseFloat(kowSlider.value), parseFloat(papSlider.value));
+  });
+  kowNum.addEventListener('change', () => {
+    const v = parseFloat(kowNum.value);
+    if (!isFinite(v) || v<=0) return;
+    const logv = Math.log10(v);
+    kowSlider.value = Math.max(-9, Math.min(10, logv));
+    updateFromLogs(parseFloat(kowSlider.value), parseFloat(papSlider.value));
+  });
+  papNum.addEventListener('change', () => {
+    const v = parseFloat(papNum.value);
+    if (!isFinite(v) || v<=0) return;
+    const logv = Math.log10(v);
+    papSlider.value = Math.max(-8, Math.min(-3, logv));
+    updateFromLogs(parseFloat(kowSlider.value), parseFloat(papSlider.value));
+  });
+
+  // init
+  updateFromLogs(0, -5);
+
+  // ---- Tabs ----
+  const tabSingle = document.getElementById('tabSingle');
+  const tabBatch = document.getElementById('tabBatch');
+  const panelSingle = document.getElementById('panelSingle');
+  const panelBatch = document.getElementById('panelBatch');
+
+  tabSingle.addEventListener('click', () => {
+    tabSingle.classList.add('active'); tabBatch.classList.remove('active');
+    panelSingle.classList.add('active'); panelBatch.classList.remove('active');
+  });
+  tabBatch.addEventListener('click', () => {
+    tabBatch.classList.add('active'); tabSingle.classList.remove('active');
+    panelBatch.classList.add('active'); panelSingle.classList.remove('active');
+  });
+
+  // ---- Batch mode ----
+  const batchInput = document.getElementById('batchInput');
+  const batchRun = document.getElementById('batchRun');
+  const batchDownload = document.getElementById('batchDownload');
+  const batchClear = document.getElementById('batchClear');
+  const batchBody = document.getElementById('batchBody');
+  const batchEmpty = document.getElementById('batchEmpty');
+  const batchCount = document.getElementById('batchCount');
+
+  let lastResults = [];
+
+  function regimePill(kow){
+    if (kow < 1e6) return '<span class="regime-pill perm">permeability-limited</span>';
+    if (kow <= 1e8) return '<span class="regime-pill mix">mixed</span>';
+    return '<span class="regime-pill part">partitioning-limited</span>';
+  }
+
+  function parseNum(s){
+    if (s === undefined) return NaN;
+    const v = parseFloat(String(s).trim());
+    return v;
+  }
+
+  function looksLikeHeader(cells){
+    const joined = cells.join(' ').toLowerCase();
+    return joined.includes('kow') || joined.includes('papp') || (joined.includes('name') && !/[0-9]/.test(joined.replace(/name|kow|papp/g,'')));
+  }
+
+  function parseBatchInput(raw){
+    const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    const rows = [];
+    lines.forEach((line, idx) => {
+      const cells = line.split(/[,\t;]+/).map(c => c.trim()).filter(c => c.length > 0);
+      if (cells.length === 0) return;
+      if (idx === 0 && looksLikeHeader(cells)) return; // skip header row
+      let name, kowStr, papStr;
+      if (cells.length >= 3) {
+        [name, kowStr, papStr] = cells;
+      } else if (cells.length === 2) {
+        name = 'Chemical ' + (rows.length + 1);
+        [kowStr, papStr] = cells;
+      } else {
+        rows.push({ raw: line, error: 'Need at least Kow and Papp, comma-separated.' });
+        return;
+      }
+      const kow = parseNum(kowStr);
+      const papp = parseNum(papStr);
+      if (!name) name = 'Chemical ' + (rows.length + 1);
+      if (!isFinite(kow) || kow <= 0) {
+        rows.push({ raw: line, name, error: 'Invalid Kow value.' });
+        return;
+      }
+      if (!isFinite(papp) || papp <= 0) {
+        rows.push({ raw: line, name, error: 'Invalid Papp value.' });
+        return;
+      }
+      rows.push({ name, kow, papp });
+    });
+    return rows;
+  }
+
+  function runBatch(){
+    const rows = parseBatchInput(batchInput.value);
+    lastResults = [];
+    batchBody.innerHTML = '';
+
+    if (rows.length === 0){
+      batchEmpty.style.display = 'block';
+      batchEmpty.textContent = 'No valid rows found — paste chemicals as "name, Kow, Papp" per line.';
+      batchCount.textContent = '';
+      batchDownload.disabled = true;
+      return;
+    }
+    batchEmpty.style.display = 'none';
+
+    let okCount = 0;
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      if (row.error){
+        tr.innerHTML =
+          '<td class="name-cell">' + escapeHtml(row.name || row.raw) + '</td>' +
+          '<td colspan="4" class="err-cell">' + escapeHtml(row.error) + '</td>';
+        lastResults.push({ name: row.name || row.raw, kow:'', papp:'', fabs:'', regime:'error: ' + row.error });
+      } else {
+        const f = computeFabs(row.kow, row.papp);
+        if (f === null){
+          tr.innerHTML =
+            '<td class="name-cell">' + escapeHtml(row.name) + '</td>' +
+            '<td>' + fmtSci(row.kow) + '</td>' +
+            '<td>' + fmtSci(row.papp) + '</td>' +
+            '<td class="err-cell">out of domain</td>' +
+            '<td>&mdash;</td>';
+          lastResults.push({ name: row.name, kow: row.kow, papp: row.papp, fabs: 'out of domain', regime: '' });
+        } else {
+          const pct = Math.max(0, Math.min(100, f*100));
+          tr.innerHTML =
+            '<td class="name-cell">' + escapeHtml(row.name) + '</td>' +
+            '<td>' + fmtSci(row.kow) + '</td>' +
+            '<td>' + fmtSci(row.papp) + '</td>' +
+            '<td class="fabs-cell">' + pct.toFixed(1) + '%</td>' +
+            '<td>' + regimePill(row.kow) + '</td>';
+          lastResults.push({ name: row.name, kow: row.kow, papp: row.papp, fabs: pct.toFixed(1) + '%', regime: row.kow < 1e6 ? 'permeability-limited' : (row.kow <= 1e8 ? 'mixed' : 'partitioning-limited') });
+          okCount++;
+        }
+      }
+      batchBody.appendChild(tr);
+    });
+
+    batchCount.textContent = okCount + ' of ' + rows.length + ' calculated';
+    batchDownload.disabled = lastResults.length === 0;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function downloadCSV(){
+    if (lastResults.length === 0) return;
+    const header = ['name','Kow','Papp_Caco2_cm_s','Fabs','regime'];
+    const lines = [header.join(',')];
+    lastResults.forEach(r => {
+      lines.push([
+        '"' + String(r.name).replace(/"/g,'""') + '"',
+        r.kow, r.papp, r.fabs, r.regime
+      ].join(','));
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'fabs_batch_results.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  batchRun.addEventListener('click', runBatch);
+  batchClear.addEventListener('click', () => {
+    batchInput.value = '';
+    batchBody.innerHTML = '';
+    batchEmpty.style.display = 'block';
+    batchEmpty.textContent = 'No results yet — paste chemicals above and click Calculate all.';
+    batchCount.textContent = '';
+    batchDownload.disabled = true;
+    lastResults = [];
+  });
+  batchDownload.addEventListener('click', downloadCSV);
+
+})();
+</script>
+</body>
+</html>
