@@ -55,6 +55,7 @@ nav.topnav .brand{
   letter-spacing:-.01em;
 }
 nav.topnav .brand em{font-style:italic; color:var(--amber);}
+nav.topnav .brand .deg{font-weight:400; color:var(--ink-dim); font-size:0.75em;}
 nav.topnav .links{
   display:flex;
   gap:22px;
