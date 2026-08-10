@@ -175,22 +175,8 @@
   .flow-wrap{margin-top:30px; overflow-x:auto;}
   .flow-svg{display:block; min-width:640px; width:100%; height:auto;}
   .flow-zone-label{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.05em; fill:var(--ink-dim); text-transform:uppercase;}
-  .flow-loss-label{font-family:'IBM Plex Mono',monospace; font-size:10.5px; fill:var(--red);}
+  .flow-loss-label{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:15px; fill:var(--red);}
   .flow-fbio-label{font-family:'Newsreader',serif; font-weight:500; font-size:22px; fill:var(--ink);}
-
-  .stats-row{
-    margin-top:26px;
-    display:grid; grid-template-columns:repeat(4,1fr); gap:14px;
-  }
-  @media (max-width:640px){ .stats-row{grid-template-columns:1fr 1fr;} }
-  .stat{
-    background:var(--bg-1);
-    border:1px solid var(--panel-edge);
-    border-radius:10px;
-    padding:14px 16px;
-  }
-  .stat .n{font-family:'Newsreader',serif; font-size:22px; font-weight:500; color:var(--ink);}
-  .stat .l{font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--ink-dim); letter-spacing:.03em; margin-top:4px; line-height:1.4;}
 
   .formula{
     margin-top:34px;
@@ -308,16 +294,13 @@
       <p class="fbio-caption" id="fbioCaption"></p>
 
       <div class="flow-wrap">
-        <svg class="flow-svg" id="flowSvg" viewBox="0 0 880 260" xmlns="http://www.w3.org/2000/svg"></svg>
+        <svg class="flow-svg" id="flowSvg" viewBox="0 0 880 290" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
-
-      <div class="stats-row" id="statsRow"></div>
     </div>
 
     <div class="formula">
       <span class="tag">Model</span>
       <p>A 3-compartment PBTK model (gut lumen &times; 3 segments, gut wall, liver, rest-of-body) integrated over the simulated time window. Permeability-based absorption (IVIVE from P<sub>app,Caco-2</sub>) and clearance-based metabolism (IVIVE from in vitro intrinsic clearances) run concurrently as the dose transits the gut. Full derivation in the paper's SI, Text S1&ndash;S2.</p>
-      <p><b style="color:var(--ink)">Note:</b> the source code's kidney-to-plasma partition coefficient (K<sub>kidney2plasma</sub>) divides by itself rather than by K<sub>plasmawater</sub>, unlike every other tissue in that block. This tool uses the corrected form; the effect on F<sub>bio</sub> is small (K<sub>rest2plasma</sub>'s kidney weight is ~1%) but not exactly zero.</p>
     </div>
   </div>
 
@@ -497,7 +480,6 @@
   const fbioBig = document.getElementById('fbioBig');
   const fbioCaption = document.getElementById('fbioCaption');
   const flowSvg = document.getElementById('flowSvg');
-  const statsRow = document.getElementById('statsRow');
 
   function pctStr(v) {
     return (v * 100).toFixed(v * 100 < 1 && v > 0 ? 2 : 1) + '%';
@@ -529,11 +511,11 @@
 
     const losses = [
       { x: 210, items: [
-          { pct: data.lumen_met, label: 'metabolized in lumen' },
+          { pct: data.lumen_met, label: 'metabolized' },
           { pct: data.transit, label: 'unabsorbed (transit)' },
         ] },
-      { x: 430, items: [ { pct: data.wall_met_frac, label: 'metabolized in gut wall' } ] },
-      { x: 650, items: [ { pct: data.liver_met_frac, label: 'metabolized in liver' } ] },
+      { x: 430, items: [ { pct: data.wall_met_frac, label: 'metabolized' } ] },
+      { x: 650, items: [ { pct: data.liver_met_frac, label: 'metabolized' } ] },
     ];
 
     let svg = '';
@@ -550,13 +532,13 @@
 
     svg += '<polygon points="'+topPts+botPts+'" fill="url(#riverGrad)" opacity="0.85"/>';
 
-    // loss wedges + labels
+    // loss wedges + labels (first-pass / presystemic metabolism, emphasized)
     losses.forEach(function(l){
-      let y = 200;
+      let y = 205;
       l.items.forEach(function(it){
         if (it.pct <= 0) return;
         svg += '<text class="flow-loss-label" x="'+l.x+'" y="'+y+'" text-anchor="middle">&minus;'+pctStr(it.pct)+' '+it.label+'</text>';
-        y += 15;
+        y += 22;
       });
     });
 
@@ -564,19 +546,6 @@
     svg += '<text class="flow-fbio-label" x="865" y="'+(cy+5)+'" text-anchor="end">'+pctStr(data.Fbio)+'</text>';
 
     flowSvg.innerHTML = svg;
-  }
-
-  function buildStats(data) {
-    const remaining = Math.max(0, data.Fbio - data.sys_met_liver - data.sys_met_wall - data.renal);
-    const items = [
-      { n: pctStr(data.sys_met_liver), l: 'Systemic metabolism, liver' },
-      { n: pctStr(data.sys_met_wall), l: 'Systemic metabolism, gut wall' },
-      { n: pctStr(data.renal), l: 'Renal excretion' },
-      { n: pctStr(remaining), l: 'Still circulating / unmetabolized at t' },
-    ];
-    statsRow.innerHTML = items.map(function(it){
-      return '<div class="stat"><div class="n">'+it.n+'</div><div class="l">'+it.l+'</div></div>';
-    }).join('');
   }
 
   function readInputs() {
@@ -611,7 +580,6 @@
       const name = els.name.value.trim() || 'this chemical';
       fbioCaption.textContent = 'of the ingested dose of ' + name + ' reaches systemic circulation unchanged after ' + els.time.value + ' hours, after accounting for presystemic metabolism in the gut lumen, gut wall, and liver.';
       buildFlow(data);
-      buildStats(data);
       results.style.display = 'block';
     } catch (e) {
       errBox.textContent = e.message;
