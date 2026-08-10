@@ -550,7 +550,7 @@
       { pct: data.liver_met_frac, label: 'metabolized in liver' },
     ];
     lossList.innerHTML = items.map(function(it){
-      return '<div>&minus;' + pctStr(it.pct) + ' <span>' + it.label + '</span></div>';
+      return '<div>' + pctStr(it.pct) + ' <span>' + it.label + '</span></div>';
     }).join('');
   }
 
