@@ -177,6 +177,18 @@
   .flow-zone-label{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.05em; fill:var(--ink-dim); text-transform:uppercase;}
   .flow-fbio-label{font-family:'Newsreader',serif; font-weight:500; font-size:22px; fill:var(--ink);}
 
+  .figure-wrap{margin:0; padding:20px; background:#fff; border:1px solid var(--panel-edge); border-radius:10px;}
+  .figure-img{display:block; width:100%; height:auto; border-radius:4px;}
+  .figure-caption{
+    margin-top:16px;
+    font-size:12.5px;
+    line-height:1.6;
+    color:var(--ink-dim);
+    font-family:'IBM Plex Sans', sans-serif;
+  }
+  .figure-caption b{color:var(--ink);}
+  .figure-caption a{color:var(--teal);}
+
   .loss-list{
     margin-top:22px;
     display:flex; flex-direction:column; gap:8px;
@@ -314,6 +326,12 @@
       <span class="tag">Model</span>
       <p>A 3-compartment PBTK model (gut lumen &times; 3 segments, gut wall, liver, rest-of-body) integrated over the simulated time window. Permeability-based absorption (IVIVE from P<sub>app,Caco-2</sub>) and clearance-based metabolism (IVIVE from in vitro intrinsic clearances) run concurrently as the dose transits the gut. Full derivation in the paper's SI, Text S1&ndash;S2.</p>
     </div>
+
+    <p class="section-label">Model framework</p>
+    <figure class="figure-wrap">
+      <img class="figure-img" src="../assets/fbio-figure1.png" alt="Figure 1 from the source paper: toxicokinetic processes (panel a) and compartments (panel b) considered in the model, showing gut lumen, gut wall, liver, and rest-of-body compartments and the flows between them.">
+      <figcaption class="figure-caption"><b>Figure 1.</b> Toxicokinetic processes (a) and compartments (b) considered in the model. Source: Wang, S., Zhang, Z., Saunders, L. J., Li, D., &amp; Li, L. (2024). Understanding the impacts of presystemic metabolism on the human oral bioavailability of chemicals. <i>Environmental Science &amp; Technology</i>, 58(32), 14135&ndash;14145. <a href="https://doi.org/10.1021/acs.est.4c03344" target="_blank" rel="noopener">doi.org/10.1021/acs.est.4c03344</a></figcaption>
+    </figure>
   </div>
 
   <footer>
