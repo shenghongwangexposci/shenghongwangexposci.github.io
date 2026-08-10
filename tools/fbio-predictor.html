@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fbio Predictor — Oral Bioavailability PBTK Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#f7f4ec;
+    --bg-1:#efe9d9;
+    --panel:#fffdf8;
+    --panel-edge:#e2dcc7;
+    --ink:#26332e;
+    --ink-dim:#6b7a73;
+    --amber:#b5772f;
+    --amber-dim:#d9a45c;
+    --teal:#2f7d68;
+    --red:#a83f36;
+    --grid:#e8e2d1;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, #eef2ec 0%, transparent 55%),
+      radial-gradient(ellipse at 100% 110%, #f3ecdd 0%, transparent 50%),
+      var(--bg-0);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    padding:48px 20px 72px;
+  }
+  .wrap{max-width:960px;margin:0 auto;}
+
+  header{margin-bottom:36px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--teal);
+    margin:0 0 10px;
+  }
+  h1{
+    font-family:'Newsreader', serif;
+    font-weight:500;
+    font-size:clamp(32px,5vw,48px);
+    line-height:1.05;
+    margin:0 0 14px;
+    letter-spacing:-.01em;
+  }
+  h1 em{font-style:italic;color:var(--amber);}
+  .sub{
+    color:var(--ink-dim);
+    font-size:15.5px;
+    line-height:1.6;
+    max-width:680px;
+    margin:0;
+  }
+  .sub a{color:var(--teal);}
+
+  .board{
+    background:linear-gradient(180deg,var(--panel),#faf6ec);
+    border:1px solid var(--panel-edge);
+    border-radius:14px;
+    padding:36px;
+    box-shadow:0 24px 48px -30px rgba(38,51,46,.14), inset 0 1px 0 rgba(255,255,255,.7);
+    position:relative;
+    overflow:hidden;
+  }
+  .board::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:28px 28px;
+    opacity:.6;
+    pointer-events:none;
+  }
+  .board > *{position:relative;}
+
+  .section-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--teal);
+    margin:0 0 14px;
+  }
+  .section-label:not(:first-child){margin-top:30px;}
+
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:18px 22px;}
+  .grid2{display:grid; grid-template-columns:repeat(2,1fr); gap:18px 22px;}
+  @media (max-width:720px){ .grid3, .grid2{grid-template-columns:1fr 1fr;} }
+  @media (max-width:520px){ .grid3, .grid2{grid-template-columns:1fr;} }
+
+  .field label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.03em;
+    color:var(--ink-dim);
+    margin-bottom:7px;
+  }
+  .field label b{color:var(--ink); font-weight:500;}
+  .numrow{display:flex; gap:8px; align-items:center;}
+  input[type=number], input[type=text], select{
+    width:100%;
+    background:var(--bg-1);
+    border:1px solid var(--panel-edge);
+    border-radius:7px;
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13.5px;
+    padding:9px 10px;
+  }
+  input:focus, select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+  .unit{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-dim); white-space:nowrap;}
+
+  details.advanced{margin-top:26px; border-top:1px dashed var(--panel-edge); padding-top:16px;}
+  details.advanced summary{
+    cursor:pointer;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.04em;
+    color:var(--ink-dim);
+    user-select:none;
+  }
+  details.advanced summary:hover{color:var(--teal);}
+  details.advanced .grid3{margin-top:16px;}
+  .hint{font-size:12px; color:var(--ink-dim); line-height:1.5; margin:6px 0 0;}
+
+  .actions{
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    margin-top:28px; padding-top:22px; border-top:1px solid var(--panel-edge);
+  }
+  .btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:.03em;
+    border-radius:8px;
+    padding:10px 18px;
+    cursor:pointer;
+    border:1px solid var(--panel-edge);
+    background:var(--teal);
+    color:var(--bg-0);
+    font-weight:600;
+  }
+  .btn.secondary{background:var(--bg-1); color:var(--ink);}
+  .btn:hover{filter:brightness(1.07);}
+  .err{color:var(--red); font-family:'IBM Plex Mono',monospace; font-size:12.5px; margin-top:14px; display:none;}
+
+  .results{margin-top:34px; padding-top:28px; border-top:1px solid var(--panel-edge); display:none;}
+  .readout-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink-dim);
+    margin-bottom:6px;
+  }
+  .keep-case{text-transform:none;}
+  .fbio-value{
+    font-family:'Newsreader', serif;
+    font-weight:500;
+    font-size:clamp(48px,8vw,80px);
+    line-height:1;
+    letter-spacing:-.02em;
+    color:var(--ink);
+  }
+  .fbio-value .pct{font-size:.42em; color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; margin-left:6px;}
+  .fbio-caption{font-size:13.5px; color:var(--ink-dim); margin-top:6px; max-width:560px; line-height:1.55;}
+
+  .flow-wrap{margin-top:30px; overflow-x:auto;}
+  .flow-svg{display:block; min-width:640px; width:100%; height:auto;}
+  .flow-zone-label{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.05em; fill:var(--ink-dim); text-transform:uppercase;}
+  .flow-loss-label{font-family:'IBM Plex Mono',monospace; font-size:10.5px; fill:var(--red);}
+  .flow-fbio-label{font-family:'Newsreader',serif; font-weight:500; font-size:22px; fill:var(--ink);}
+
+  .stats-row{
+    margin-top:26px;
+    display:grid; grid-template-columns:repeat(4,1fr); gap:14px;
+  }
+  @media (max-width:640px){ .stats-row{grid-template-columns:1fr 1fr;} }
+  .stat{
+    background:var(--bg-1);
+    border:1px solid var(--panel-edge);
+    border-radius:10px;
+    padding:14px 16px;
+  }
+  .stat .n{font-family:'Newsreader',serif; font-size:22px; font-weight:500; color:var(--ink);}
+  .stat .l{font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--ink-dim); letter-spacing:.03em; margin-top:4px; line-height:1.4;}
+
+  .formula{
+    margin-top:34px;
+    padding-top:22px;
+    border-top:1px solid var(--panel-edge);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--ink-dim);
+    line-height:1.85;
+  }
+  .formula .tag{color:var(--teal); letter-spacing:.08em; text-transform:uppercase; font-size:10.5px; display:block; margin-bottom:8px;}
+  .formula p{margin:0 0 10px;}
+
+  footer{
+    max-width:960px;
+    margin:28px auto 0;
+    color:#8a978f;
+    font-size:12.5px;
+    line-height:1.7;
+  }
+  footer a{color:var(--teal);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow"><a href="../tools.html" style="color:inherit; text-decoration:none;">&larr; Shenghong Wang</a> &middot; Screening-level toxicokinetics</p>
+    <h1>Oral <em>bioavailability</em> (F<sub>bio</sub>) model</h1>
+    <p class="sub">A physiologically based toxicokinetic (PBTK) model predicting the fraction of an oral dose that survives presystemic ("first-pass") metabolism in the gut lumen, gut wall, and liver to reach systemic circulation &mdash; following the mechanistic model in Wang, Zhang, Saunders, Li &amp; Li, <em style="font-style:italic">Environmental Science &amp; Technology</em> 58 (2024) 14135&ndash;14145.</p>
+  </header>
+
+  <div class="board">
+
+    <p class="section-label">Chemical properties</p>
+    <div class="grid3">
+      <div class="field">
+        <label><b>Chemical name</b> <span class="unit">(label only)</span></label>
+        <input type="text" id="name" value="DEHP">
+      </div>
+      <div class="field">
+        <label><b>log K<sub>OW</sub></b> <span class="unit">(pH 7.4, unitless)</span></label>
+        <input type="number" id="logKow" value="7.43" step="any">
+      </div>
+      <div class="field">
+        <label><b>P<sub>app,Caco-2</sub></b> <span class="unit">(cm/s)</span></label>
+        <input type="number" id="Papp" value="2.1e-6" step="any">
+      </div>
+    </div>
+
+    <p class="section-label">Gut lumen metabolism</p>
+    <div class="grid3">
+      <div class="field">
+        <label><b>Cl<sub>int,lumen</sub></b> segment 1 <span class="unit">(&mu;L/min/mg content)</span></label>
+        <input type="number" id="clLumen1" value="10.4" step="any">
+      </div>
+      <div class="field">
+        <label><b>Cl<sub>int,lumen</sub></b> segment 2 <span class="unit">(&mu;L/min/mg content)</span></label>
+        <input type="number" id="clLumen2" value="15.6" step="any">
+      </div>
+      <div class="field">
+        <label><b>Cl<sub>int,lumen</sub></b> segment 3 <span class="unit">(&mu;L/min/mg content)</span></label>
+        <input type="number" id="clLumen3" value="15.6" step="any">
+      </div>
+    </div>
+
+    <p class="section-label">Gut wall &amp; liver metabolism</p>
+    <div class="grid3">
+      <div class="field">
+        <label><b>Cl<sub>int,liver</sub></b> <span class="unit">(&mu;L/min/mg protein)</span></label>
+        <input type="number" id="clLiver" value="30.1" step="any">
+      </div>
+      <div class="field">
+        <label><b>Cl<sub>int,wall</sub></b> <span class="unit">(&mu;L/min/mg protein)</span></label>
+        <input type="number" id="clWall" value="219.6" step="any">
+      </div>
+      <div class="field">
+        <label><b>Assay type</b></label>
+        <select id="clintType">
+          <option value="microsome" selected>Microsome</option>
+          <option value="hep">Hepatocyte</option>
+        </select>
+      </div>
+    </div>
+
+    <p class="section-label">Simulation</p>
+    <div class="grid3">
+      <div class="field">
+        <label><b>Time</b> <span class="unit">(hours after ingestion)</span></label>
+        <input type="number" id="time" value="24" step="any" min="0.1">
+      </div>
+    </div>
+
+    <details class="advanced">
+      <summary>Advanced</summary>
+      <div class="grid3">
+        <div class="field">
+          <label><b>N<sub>lumen</sub></b> <span class="unit">(gut-lumen scaling factor)</span></label>
+          <input type="number" id="nLumen" value="1" step="any" min="0">
+        </div>
+      </div>
+      <p class="hint">Scales gut-lumen metabolic rate constants relative to the default in vitro&ndash;in vivo extrapolation. Default is 1. The source paper used N<sub>lumen</sub> = 3 for DEHP to account for lipase activity differences between rat and human gut content used in scaling &mdash; set it back to 1 unless you have a specific reason to adjust it for your chemical.</p>
+    </details>
+
+    <div class="actions">
+      <button class="btn" id="calcBtn" type="button">Calculate F<sub>bio</sub></button>
+      <button class="btn secondary" id="loadDehp" type="button">Load DEHP example</button>
+      <button class="btn secondary" id="loadOmep" type="button">Load omeprazole example</button>
+    </div>
+    <p class="err" id="errBox"></p>
+
+    <div class="results" id="results">
+      <div class="readout-label">Predicted <span class="keep-case">F<sub>bio</sub></span></div>
+      <div class="fbio-value" id="fbioBig">&mdash;<span class="pct">%</span></div>
+      <p class="fbio-caption" id="fbioCaption"></p>
+
+      <div class="flow-wrap">
+        <svg class="flow-svg" id="flowSvg" viewBox="0 0 880 260" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+
+      <div class="stats-row" id="statsRow"></div>
+    </div>
+
+    <div class="formula">
+      <span class="tag">Model</span>
+      <p>A 3-compartment PBTK model (gut lumen &times; 3 segments, gut wall, liver, rest-of-body) integrated over the simulated time window. Permeability-based absorption (IVIVE from P<sub>app,Caco-2</sub>) and clearance-based metabolism (IVIVE from in vitro intrinsic clearances) run concurrently as the dose transits the gut. Full derivation in the paper's SI, Text S1&ndash;S2.</p>
+      <p><b style="color:var(--ink)">Note:</b> the source code's kidney-to-plasma partition coefficient (K<sub>kidney2plasma</sub>) divides by itself rather than by K<sub>plasmawater</sub>, unlike every other tissue in that block. This tool uses the corrected form; the effect on F<sub>bio</sub> is small (K<sub>rest2plasma</sub>'s kidney weight is ~1%) but not exactly zero.</p>
+    </div>
+  </div>
+
+  <footer>
+    Model validated against di-2-ethylhexyl phthalate (DEHP) and omeprazole, per the source paper's case studies. Source: Wang, S., Zhang, Z., Saunders, L. J., Li, D., Li, L. (2024). Understanding the impacts of presystemic metabolism on the human oral bioavailability of chemicals. <a href="https://doi.org/10.1021/acs.est.4c03344" target="_blank" rel="noopener">doi.org/10.1021/acs.est.4c03344</a>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+
+  function computeFbio(p) {
+    const { Cl_int_lumen1, Cl_int_lumen2, Cl_int_lumen3, Cl_int_liver, Cl_int_wall,
+      logKow, Clint_type, Papp_caco2, time, N_lumen } = p;
+
+    const BW = 70, R = 1.75;
+    const k_transit = 1 / 4 * 3;
+    const Q_cardiacc = 13.88 * Math.pow(BW, 0.75);
+    const Q_portal = 0.2054 * Q_cardiacc;
+    const Q_liver = 0.05359 * Q_cardiacc;
+    const V_wall = 0.0089 * BW;
+    const V_liver = 0.0245 * BW;
+    const V_rest = 0.788 * BW;
+    const M_liver = 1800, M_wall = 623;
+    const Q_gfr = 0.30998 * Math.pow(BW, 0.75);
+    const F_reabsorption = (1 - 0.06 / Q_gfr) * Math.pow(Papp_caco2, 2.7) / (Math.pow(34.4e-6, 2.7) + Math.pow(Papp_caco2, 2.7));
+
+    const Klipidw = Math.pow(10, logKow);
+    const Kproteinw = Math.pow(10, 0.73 * logKow - 0.39);
+    const Kplipidw = Math.pow(10, 1.01 * logKow + 0.12);
+    const Kalbuminw = Math.pow(10, 0.73 * logKow - 0.39);
+
+    function Kwater(vw, vn, vp, va, vpr) {
+      return vw + vn * Klipidw + vp * Kplipidw + va * Kalbuminw + vpr * Kproteinw;
+    }
+
+    const Kliverwater = Kwater(0.73, 0.019, 0.046, 0.0019, 0.17);
+    const Kplasmawater = Kwater(0.96, 0.0015, 0.0008, 0.029, 0.015);
+    const Kwallwater = Kwater(0.7969, 0.04347, 0.01953, 0.001056, 0.135);
+    const K_liver2plasma = Kliverwater / Kplasmawater;
+    const K_wall2plasma = Kwallwater / Kplasmawater;
+
+    const Kmusclewater = Kwater(0.788, 0.0043, 0.0045, 0.0013, 0.17);
+    const K_muscle2plasma = Kmusclewater / Kplasmawater;
+
+    const Klungwater = Kwater(0.84, 0.0102, 0.0098, 0.0054, 0.055);
+    const K_lung2plasma = Klungwater / Kplasmawater;
+
+    const Kbrainwater = Kwater(0.79, 0.043, 0.067, 0.00004, 0.08);
+    const K_brain2plasma = Kbrainwater / Kplasmawater;
+
+    const Kkidneywater = Kwater(0.78, 0.012, 0.035, 0.0024, 0.16);
+    const K_kidney2plasma = Kkidneywater / Kplasmawater; // corrected; SI divides by itself
+
+    const Kbloodwater = Kwater(0.81, 0.0013, 0.0022, 0.016, 0.16);
+    const K_blood2plasma = Kbloodwater / Kplasmawater;
+
+    const K_rest2plasma = (0.3842 * K_muscle2plasma + 0.007235 * K_lung2plasma + 0.019310 * K_brain2plasma + 0.00419 * K_kidney2plasma) / (0.3842 + 0.007235 + 0.019310 + 0.00419);
+
+    const fub_blood = (1 / Kbloodwater) * 0.81;
+    const fub_plasma = (1 / Kplasmawater) * 0.96;
+    const R_blood2plasma = K_blood2plasma;
+
+    const Peff = Math.pow(10, 0.2940 * Math.log10(Papp_caco2) - 2.4209);
+    const k_abs = (2 * Peff / R) * 3600;
+
+    const fub_lumen = 1;
+    const N = N_lumen || 1;
+    const k_lumen1 = Cl_int_lumen1 * 0.001 * 60 * N * fub_lumen;
+    const k_lumen2 = Cl_int_lumen2 * 0.001 * 60 * N * fub_lumen;
+    const k_lumen3 = Cl_int_lumen3 * 0.001 * 60 * N * fub_lumen;
+
+    const w_assay_blood = 1;
+    let Cl_liver, fu_mic;
+    if (Clint_type === "microsome") {
+      const N_liver = 62.9;
+      const v_protein_assay = 1 / 1000;
+      const v_plipid_assay = 0.35 * v_protein_assay;
+      const v_water_assay = 1 - v_protein_assay - v_plipid_assay;
+      const Kassaywater = Kwater(v_water_assay, 0, v_plipid_assay, 0, v_protein_assay);
+      fu_mic = (1 / Kassaywater) * v_water_assay;
+      Cl_liver = Cl_int_liver * N_liver * M_liver * 60 / 1e6 * w_assay_blood / fu_mic * fub_blood;
+    } else if (Clint_type === "hep") {
+      const N_hep = 110, Vr = 0.5;
+      const fub_hep = 1 / (1 + 125 * Vr * Math.pow(10, 0.072 * logKow * logKow + 0.067 * logKow - 1.126));
+      fu_mic = fub_hep;
+      Cl_liver = Cl_int_liver * N_hep * M_liver * 60 / 1e6 * w_assay_blood / fub_hep * fub_blood;
+    } else {
+      throw new Error("Clint_type must be 'microsome' or 'hep'");
+    }
+
+    const N_wall = 3.9;
+    const Cl_wall = Cl_int_wall * N_wall * M_wall * 60 / 1e6 * w_assay_blood / fu_mic * fub_blood;
+
+    function deriv(z) {
+      const dA_lumen1 = -k_abs * z[0] - k_transit * z[0] - k_lumen1 * z[0];
+      const dA_lumen2 = k_transit * z[0] - k_transit * z[1] - k_abs * z[1] - k_lumen2 * z[1];
+      const dA_lumen3 = k_transit * z[1] - k_transit * z[2] - k_abs * z[2] - k_lumen3 * z[2];
+      const dAlumen2wall = k_abs * (z[0] + z[1] + z[2]);
+      const dArest2wall = Q_portal * R_blood2plasma / K_rest2plasma * z[5];
+      const dAwall2liver = Q_portal * R_blood2plasma / K_wall2plasma * z[3];
+      const dArest2liver = Q_liver * R_blood2plasma / K_rest2plasma * z[5];
+      const dAliver2rest = (Q_liver + Q_portal) * R_blood2plasma / K_liver2plasma * z[4];
+      const dAwall2met = Cl_wall * R_blood2plasma / K_wall2plasma * z[3];
+      const dAliver2met = Cl_liver * R_blood2plasma / K_liver2plasma * z[4];
+      const dArest2urine = Q_gfr * fub_plasma * (1 - F_reabsorption) / K_rest2plasma * z[5];
+      const dAlumen2met = k_lumen1 * z[0] + k_lumen2 * z[1] + k_lumen3 * z[2];
+      const dAlumen1_2met = k_lumen1 * z[0];
+      const dAlumen2_2met = k_lumen2 * z[1];
+      const dAlumen3_2met = k_lumen3 * z[2];
+      const dAlumen2transit = k_transit * z[2];
+
+      const dC_wall = (dAlumen2wall + dArest2wall - dAwall2liver - dAwall2met) / V_wall;
+      const dC_liver = (dAwall2liver + dArest2liver - dAliver2rest - dAliver2met) / V_liver;
+      const dC_rest = (dAliver2rest - dArest2liver - dArest2wall - dArest2urine) / V_rest;
+
+      return [dA_lumen1, dA_lumen2, dA_lumen3, dC_wall, dC_liver, dC_rest, dAlumen2wall, dArest2wall,
+        dAwall2liver, dArest2liver, dAliver2rest, dAlumen2met, dAliver2met, dAwall2met,
+        dAlumen1_2met, dAlumen2_2met, dAlumen3_2met, dArest2urine, dAlumen2transit];
+    }
+
+    function addScaled(z, k, s) {
+      const out = new Array(z.length);
+      for (let i = 0; i < z.length; i++) out[i] = z[i] + s * k[i];
+      return out;
+    }
+
+    const steps = 5000;
+    const dt = time / steps;
+    let z = new Array(19).fill(0);
+    z[0] = 1;
+    for (let i = 0; i < steps; i++) {
+      const k1 = deriv(z);
+      const k2 = deriv(addScaled(z, k1, dt / 2));
+      const k3 = deriv(addScaled(z, k2, dt / 2));
+      const k4 = deriv(addScaled(z, k3, dt));
+      const zn = new Array(19);
+      for (let j = 0; j < 19; j++) zn[j] = z[j] + (dt / 6) * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j]);
+      z = zn;
+    }
+
+    const wallShare = z[6] / (z[6] + z[7]);
+    const liverAbsShare = z[8] / (z[8] + z[9]);
+
+    return {
+      lumen_met: z[11],
+      transit: z[18],
+      Fabs: z[6],
+      wall_met_frac: z[13] * wallShare,
+      liver_abs_frac: z[8] * wallShare,
+      liver_met_frac: z[12] * wallShare * liverAbsShare,
+      Fbio: wallShare * liverAbsShare * z[10],
+      sys_met_liver: z[12] * (1 - wallShare * liverAbsShare),
+      sys_met_wall: z[13] * (1 - wallShare),
+      renal: z[17],
+    };
+  }
+
+  // ---- DOM wiring ----
+  const els = {
+    name: document.getElementById('name'),
+    logKow: document.getElementById('logKow'),
+    Papp: document.getElementById('Papp'),
+    clLumen1: document.getElementById('clLumen1'),
+    clLumen2: document.getElementById('clLumen2'),
+    clLumen3: document.getElementById('clLumen3'),
+    clLiver: document.getElementById('clLiver'),
+    clWall: document.getElementById('clWall'),
+    clintType: document.getElementById('clintType'),
+    time: document.getElementById('time'),
+    nLumen: document.getElementById('nLumen'),
+  };
+  const calcBtn = document.getElementById('calcBtn');
+  const errBox = document.getElementById('errBox');
+  const results = document.getElementById('results');
+  const fbioBig = document.getElementById('fbioBig');
+  const fbioCaption = document.getElementById('fbioCaption');
+  const flowSvg = document.getElementById('flowSvg');
+  const statsRow = document.getElementById('statsRow');
+
+  function pctStr(v) {
+    return (v * 100).toFixed(v * 100 < 1 && v > 0 ? 2 : 1) + '%';
+  }
+
+  function buildFlow(data) {
+    const zones = [
+      { label: 'Gut lumen', x0: 0, x1: 210 },
+      { label: 'Gut wall', x0: 210, x1: 430 },
+      { label: 'Liver', x0: 430, x1: 650 },
+      { label: 'Systemic circulation', x0: 650, x1: 880 },
+    ];
+    const amounts = [1, data.Fabs, data.liver_abs_frac, data.Fbio, data.Fbio];
+    const xs = [0, 210, 430, 650, 880];
+    const cy = 118;
+    const maxHalf = 66;
+    const minHalf = 4;
+    function halfH(a) { return minHalf + a * (maxHalf - minHalf); }
+
+    let topPts = '', botPts = '';
+    for (let i = 0; i < xs.length; i++) {
+      const h = halfH(amounts[i]);
+      topPts += xs[i] + ',' + (cy - h) + ' ';
+    }
+    for (let i = xs.length - 1; i >= 0; i--) {
+      const h = halfH(amounts[i]);
+      botPts += xs[i] + ',' + (cy + h) + ' ';
+    }
+
+    const losses = [
+      { x: 210, items: [
+          { pct: data.lumen_met, label: 'metabolized in lumen' },
+          { pct: data.transit, label: 'unabsorbed (transit)' },
+        ] },
+      { x: 430, items: [ { pct: data.wall_met_frac, label: 'metabolized in gut wall' } ] },
+      { x: 650, items: [ { pct: data.liver_met_frac, label: 'metabolized in liver' } ] },
+    ];
+
+    let svg = '';
+    svg += '<defs><linearGradient id="riverGrad" x1="0" y1="0" x2="1" y2="0">' +
+      '<stop offset="0%" stop-color="var(--teal)"/><stop offset="65%" stop-color="var(--amber-dim)"/>' +
+      '<stop offset="100%" stop-color="var(--amber)"/></linearGradient></defs>';
+
+    // zone dividers + labels
+    zones.forEach(function(z){
+      svg += '<line x1="'+z.x1+'" y1="14" x2="'+z.x1+'" y2="220" stroke="var(--panel-edge)" stroke-dasharray="3,4"/>';
+      const cx = (z.x0 + z.x1) / 2;
+      svg += '<text class="flow-zone-label" x="'+cx+'" y="14" text-anchor="middle">'+z.label+'</text>';
+    });
+
+    svg += '<polygon points="'+topPts+botPts+'" fill="url(#riverGrad)" opacity="0.85"/>';
+
+    // loss wedges + labels
+    losses.forEach(function(l){
+      let y = 200;
+      l.items.forEach(function(it){
+        if (it.pct <= 0) return;
+        svg += '<text class="flow-loss-label" x="'+l.x+'" y="'+y+'" text-anchor="middle">&minus;'+pctStr(it.pct)+' '+it.label+'</text>';
+        y += 15;
+      });
+    });
+
+    // final Fbio label
+    svg += '<text class="flow-fbio-label" x="865" y="'+(cy+5)+'" text-anchor="end">'+pctStr(data.Fbio)+'</text>';
+
+    flowSvg.innerHTML = svg;
+  }
+
+  function buildStats(data) {
+    const remaining = Math.max(0, data.Fbio - data.sys_met_liver - data.sys_met_wall - data.renal);
+    const items = [
+      { n: pctStr(data.sys_met_liver), l: 'Systemic metabolism, liver' },
+      { n: pctStr(data.sys_met_wall), l: 'Systemic metabolism, gut wall' },
+      { n: pctStr(data.renal), l: 'Renal excretion' },
+      { n: pctStr(remaining), l: 'Still circulating / unmetabolized at t' },
+    ];
+    statsRow.innerHTML = items.map(function(it){
+      return '<div class="stat"><div class="n">'+it.n+'</div><div class="l">'+it.l+'</div></div>';
+    }).join('');
+  }
+
+  function readInputs() {
+    const p = {
+      Cl_int_lumen1: parseFloat(els.clLumen1.value),
+      Cl_int_lumen2: parseFloat(els.clLumen2.value),
+      Cl_int_lumen3: parseFloat(els.clLumen3.value),
+      Cl_int_liver: parseFloat(els.clLiver.value),
+      Cl_int_wall: parseFloat(els.clWall.value),
+      logKow: parseFloat(els.logKow.value),
+      Clint_type: els.clintType.value,
+      Papp_caco2: parseFloat(els.Papp.value),
+      time: parseFloat(els.time.value),
+      N_lumen: parseFloat(els.nLumen.value),
+    };
+    const nums = [p.Cl_int_lumen1, p.Cl_int_lumen2, p.Cl_int_lumen3, p.Cl_int_liver, p.Cl_int_wall, p.logKow, p.Papp_caco2, p.time, p.N_lumen];
+    if (nums.some(function(v){ return !isFinite(v); })) throw new Error('All fields must be valid numbers.');
+    if (p.Papp_caco2 <= 0) throw new Error('Papp,Caco-2 must be greater than 0.');
+    if (p.time <= 0) throw new Error('Time must be greater than 0.');
+    if ([p.Cl_int_lumen1, p.Cl_int_lumen2, p.Cl_int_lumen3, p.Cl_int_liver, p.Cl_int_wall, p.N_lumen].some(function(v){ return v < 0; })) {
+      throw new Error('Clearances and N_lumen cannot be negative.');
+    }
+    return p;
+  }
+
+  function run() {
+    errBox.style.display = 'none';
+    try {
+      const p = readInputs();
+      const data = computeFbio(p);
+      fbioBig.innerHTML = pctStr(data.Fbio).replace('%','') + '<span class="pct">%</span>';
+      const name = els.name.value.trim() || 'this chemical';
+      fbioCaption.textContent = 'of the ingested dose of ' + name + ' reaches systemic circulation unchanged after ' + els.time.value + ' hours, after accounting for presystemic metabolism in the gut lumen, gut wall, and liver.';
+      buildFlow(data);
+      buildStats(data);
+      results.style.display = 'block';
+    } catch (e) {
+      errBox.textContent = e.message;
+      errBox.style.display = 'block';
+      results.style.display = 'none';
+    }
+  }
+
+  calcBtn.addEventListener('click', run);
+
+  function loadDehp() {
+    els.name.value = 'DEHP';
+    els.logKow.value = 7.43;
+    els.Papp.value = 2.1e-6;
+    els.clLumen1.value = 10.4;
+    els.clLumen2.value = 15.6;
+    els.clLumen3.value = 15.6;
+    els.clLiver.value = 30.1;
+    els.clWall.value = 219.6;
+    els.clintType.value = 'microsome';
+    els.time.value = 24;
+    els.nLumen.value = 3;
+    run();
+  }
+
+  function loadOmep() {
+    els.name.value = 'Omeprazole';
+    els.logKow.value = 2.38;
+    els.Papp.value = 6.48e-5;
+    els.clLumen1.value = 0;
+    els.clLumen2.value = 0;
+    els.clLumen3.value = 36.7;
+    els.clLiver.value = 49.0;
+    els.clWall.value = 0;
+    els.clintType.value = 'microsome';
+    els.time.value = 24;
+    els.nLumen.value = 1;
+    run();
+  }
+
+  document.getElementById('loadDehp').addEventListener('click', loadDehp);
+  document.getElementById('loadOmep').addEventListener('click', loadOmep);
+
+  // initial render — use the DEHP preset so the displayed defaults (including
+  // the advanced N_lumen field) are internally consistent with each other.
+  loadDehp();
+
+})();
+</script>
+</body>
+</html>
