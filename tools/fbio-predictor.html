@@ -175,8 +175,19 @@
   .flow-wrap{margin-top:30px; overflow-x:auto;}
   .flow-svg{display:block; min-width:640px; width:100%; height:auto;}
   .flow-zone-label{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.05em; fill:var(--ink-dim); text-transform:uppercase;}
-  .flow-loss-label{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:15px; fill:var(--red);}
   .flow-fbio-label{font-family:'Newsreader',serif; font-weight:500; font-size:22px; fill:var(--ink);}
+
+  .loss-list{
+    margin-top:22px;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .loss-list div{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:16px;
+    color:var(--red);
+  }
+  .loss-list div span{font-weight:500; color:var(--ink-dim); font-size:13px; margin-left:4px;}
 
   .formula{
     margin-top:34px;
@@ -294,8 +305,9 @@
       <p class="fbio-caption" id="fbioCaption"></p>
 
       <div class="flow-wrap">
-        <svg class="flow-svg" id="flowSvg" viewBox="0 0 880 290" xmlns="http://www.w3.org/2000/svg"></svg>
+        <svg class="flow-svg" id="flowSvg" viewBox="0 0 880 230" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
+      <div class="loss-list" id="lossList"></div>
     </div>
 
     <div class="formula">
@@ -480,6 +492,7 @@
   const fbioBig = document.getElementById('fbioBig');
   const fbioCaption = document.getElementById('fbioCaption');
   const flowSvg = document.getElementById('flowSvg');
+  const lossList = document.getElementById('lossList');
 
   function pctStr(v) {
     return (v * 100).toFixed(v * 100 < 1 && v > 0 ? 2 : 1) + '%';
@@ -509,15 +522,6 @@
       botPts += xs[i] + ',' + (cy + h) + ' ';
     }
 
-    const losses = [
-      { x: 210, items: [
-          { pct: data.lumen_met, label: 'metabolized' },
-          { pct: data.transit, label: 'unabsorbed (transit)' },
-        ] },
-      { x: 430, items: [ { pct: data.wall_met_frac, label: 'metabolized' } ] },
-      { x: 650, items: [ { pct: data.liver_met_frac, label: 'metabolized' } ] },
-    ];
-
     let svg = '';
     svg += '<defs><linearGradient id="riverGrad" x1="0" y1="0" x2="1" y2="0">' +
       '<stop offset="0%" stop-color="var(--teal)"/><stop offset="65%" stop-color="var(--amber-dim)"/>' +
@@ -532,20 +536,22 @@
 
     svg += '<polygon points="'+topPts+botPts+'" fill="url(#riverGrad)" opacity="0.85"/>';
 
-    // loss wedges + labels (first-pass / presystemic metabolism, emphasized)
-    losses.forEach(function(l){
-      let y = 205;
-      l.items.forEach(function(it){
-        if (it.pct <= 0) return;
-        svg += '<text class="flow-loss-label" x="'+l.x+'" y="'+y+'" text-anchor="middle">&minus;'+pctStr(it.pct)+' '+it.label+'</text>';
-        y += 22;
-      });
-    });
-
     // final Fbio label
     svg += '<text class="flow-fbio-label" x="865" y="'+(cy+5)+'" text-anchor="end">'+pctStr(data.Fbio)+'</text>';
 
     flowSvg.innerHTML = svg;
+  }
+
+  function buildLossList(data) {
+    const items = [
+      { pct: data.lumen_met, label: 'metabolized in gut lumen' },
+      { pct: data.transit, label: 'unabsorbed (intestinal transit)' },
+      { pct: data.wall_met_frac, label: 'metabolized in gut wall' },
+      { pct: data.liver_met_frac, label: 'metabolized in liver' },
+    ];
+    lossList.innerHTML = items.map(function(it){
+      return '<div>&minus;' + pctStr(it.pct) + ' <span>' + it.label + '</span></div>';
+    }).join('');
   }
 
   function readInputs() {
@@ -580,6 +586,7 @@
       const name = els.name.value.trim() || 'this chemical';
       fbioCaption.textContent = 'of the ingested dose of ' + name + ' reaches systemic circulation unchanged after ' + els.time.value + ' hours, after accounting for presystemic metabolism in the gut lumen, gut wall, and liver.';
       buildFlow(data);
+      buildLossList(data);
       results.style.display = 'block';
     } catch (e) {
       errBox.textContent = e.message;
