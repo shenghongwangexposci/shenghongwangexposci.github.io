@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fbio Predictor — Oral Bioavailability PBTK Model</title>
+<title>Fbio Predictor: Oral Bioavailability PBTK Model</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -229,7 +229,7 @@
   <header>
     <p class="eyebrow"><a href="../tools.html" style="color:inherit; text-decoration:none;">&larr; Shenghong Wang</a> &middot; Screening-level toxicokinetics</p>
     <h1>Oral <em>bioavailability</em> (F<sub>bio</sub>) model</h1>
-    <p class="sub">A physiologically based toxicokinetic (PBTK) model predicting the fraction of an oral dose that survives presystemic ("first-pass") metabolism in the gut lumen, gut wall, and liver to reach systemic circulation &mdash; following the mechanistic model in Wang, Zhang, Saunders, Li &amp; Li, <em style="font-style:italic">Environmental Science &amp; Technology</em> 58 (2024) 14135&ndash;14145.</p>
+    <p class="sub">A physiologically based toxicokinetic (PBTK) model predicting the fraction of an oral dose that survives presystemic ("first-pass") metabolism in the gut lumen, gut wall, and liver to reach systemic circulation, following the mechanistic model in Wang, Zhang, Saunders, Li &amp; Li, <em style="font-style:italic">Environmental Science &amp; Technology</em> 58 (2024) 14135&ndash;14145.</p>
   </header>
 
   <div class="board">
@@ -301,7 +301,7 @@
           <input type="number" id="nLumen" value="1" step="any" min="0">
         </div>
       </div>
-      <p class="hint">Scales gut-lumen metabolic rate constants relative to the default in vitro&ndash;in vivo extrapolation. Default is 1. The source paper used N<sub>lumen</sub> = 3 for DEHP to account for lipase activity differences between rat and human gut content used in scaling &mdash; set it back to 1 unless you have a specific reason to adjust it for your chemical.</p>
+      <p class="hint">Scales gut-lumen metabolic rate constants relative to the default in vitro&ndash;in vivo extrapolation. Default is 1. The source paper used N<sub>lumen</sub> = 3 for DEHP to account for lipase activity differences between rat and human gut content used in scaling; set it back to 1 unless you have a specific reason to adjust it for your chemical.</p>
     </details>
 
     <div class="actions">
@@ -313,7 +313,7 @@
 
     <div class="results" id="results">
       <div class="readout-label">Predicted <span class="keep-case">F<sub>bio</sub></span></div>
-      <div class="fbio-value" id="fbioBig">&mdash;<span class="pct">%</span></div>
+      <div class="fbio-value" id="fbioBig">N/A<span class="pct">%</span></div>
       <p class="fbio-caption" id="fbioCaption"></p>
 
       <div class="flow-wrap">
@@ -648,7 +648,7 @@
   document.getElementById('loadDehp').addEventListener('click', loadDehp);
   document.getElementById('loadOmep').addEventListener('click', loadOmep);
 
-  // initial render — use the DEHP preset so the displayed defaults (including
+  // initial render: use the DEHP preset so the displayed defaults (including
   // the advanced N_lumen field) are internally consistent with each other.
   loadDehp();
 

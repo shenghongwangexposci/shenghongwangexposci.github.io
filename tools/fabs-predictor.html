@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fabs Predictor — GIT Absorption Model</title>
+<title>Fabs Predictor: GIT Absorption Model</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -211,6 +211,7 @@
   }
   .regime.warn .dot{background:var(--red); box-shadow:0 0 10px var(--red);}
   .regime.mix .dot{background:var(--amber); box-shadow:0 0 10px var(--amber);}
+  .regime.part .dot{background:var(--red); box-shadow:0 0 10px var(--red);}
   .regime-text b{color:var(--ink); font-weight:600;}
   .regime-text{font-size:13.5px; color:var(--ink-dim); line-height:1.55;}
 
@@ -218,21 +219,43 @@
     position:relative;
     margin-top:26px;
   }
+  .thresh-row{
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:12px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; color:var(--ink-dim);
+  }
   .spectrum-track{
     position:relative;
+    display:flex;
     height:34px;
     border-radius:8px;
-    background:linear-gradient(90deg,
-      #2a6b60 0%, #2a6b60 35%,
-      #6b5a2e 35%, #6b5a2e 65%,
-      #6b2e2e 65%, #6b2e2e 100%);
+    overflow:hidden;
     border:1px solid var(--panel-edge);
   }
+  .seg{height:100%; transition:width .35s ease;}
+  .seg-perm{background:#2a6b60;}
+  .seg-mix{background:#6b5a2e;}
+  .seg-part{background:#6b2e2e;}
   .spectrum-labels{
     display:flex; justify-content:space-between;
     font-family:'IBM Plex Mono',monospace;
     font-size:10.5px; color:var(--ink-dim);
     margin-top:6px;
+    gap:10px;
+  }
+  .spectrum-labels span{flex:1;}
+  .spectrum-labels span:nth-child(2){text-align:center;}
+  .spectrum-labels span:last-child{text-align:right;}
+  #labelPerm{color:var(--teal); font-weight:600;}
+  #labelMix{color:var(--amber); font-weight:600;}
+  #labelPart{color:var(--red); font-weight:600;}
+  .spectrum-note{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--ink-dim);
+    line-height:1.6;
+    margin:12px 0 0;
   }
   .spectrum-marker{
     position:absolute;
@@ -266,6 +289,28 @@
     overflow-x:auto;
   }
   .formula .tag{color:var(--teal); letter-spacing:.08em; text-transform:uppercase; font-size:10.5px; display:block; margin-bottom:8px;}
+
+  .sens-map{
+    position:relative;
+    z-index:2;
+    margin:34px 0 0;
+    padding-top:22px;
+    border-top:1px solid var(--panel-edge);
+  }
+  .sens-map img{
+    display:block;
+    width:100%;
+    height:auto;
+    border-radius:10px;
+    border:1px solid var(--panel-edge);
+  }
+  .sens-map figcaption{
+    margin-top:12px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    line-height:1.6;
+    color:var(--ink-dim);
+  }
 
   footer{
     max-width:920px;
@@ -426,7 +471,7 @@
   <header>
     <p class="eyebrow"><a href="../tools.html" style="color:inherit; text-decoration:none;">&larr; Shenghong Wang</a> &middot; Screening-level toxicokinetics</p>
     <h1>Fraction <em>absorbed</em> calculator</h1>
-    <p class="sub">Predicts oral fraction absorbed (F<sub>abs</sub>) in the human GI tract from octanol&ndash;water partitioning (K<sub>OW</sub>, pH 7.4) and Caco-2 apparent permeability (P<sub>app,Caco-2</sub>), following the mechanistic model in Wang, Zhang, Li &amp; Li, <em style="font-style:italic">Environment International</em> 193 (2024) 109108.</p>
+    <p class="sub">Predicts oral fraction absorbed (F<sub>abs</sub>) in the human GI tract from octanol&ndash;water partitioning (K<sub>OW</sub>, pH 7.4) and Caco-2 apparent permeability (P<sub>app,Caco-2</sub>), following the mechanistic model in Wang, Zhang, Li &amp; Li, <em style="font-style:italic">Environment International</em> 193 (2024) 109108. Regimes here are classified by log&ndash;log sensitivity (elasticity).</p>
   </header>
 
   <div class="board">
@@ -463,7 +508,7 @@
       <div class="col">
         <div class="readout">
           <div class="readout-label">Predicted <span class="keep-case">F<sub>abs</sub></span></div>
-          <div class="fabs-value" id="fabsBig">&mdash;<span class="pct">%</span></div>
+          <div class="fabs-value" id="fabsBig">N/A<span class="pct">%</span></div>
           <div class="bar-outer"><div class="bar-inner" id="fabsBar"></div></div>
           <div class="bins"><span>very low</span><span>low</span><span>moderate</span><span>high</span><span>very high</span></div>
         </div>
@@ -475,15 +520,27 @@
       </div>
     </div>
 
+    <div class="formula">
+      <span class="tag">Equation</span>
+      F<sub>abs</sub> = 1 &minus; exp( &minus;16457 / { [(1&minus;2.40×10⁻⁹) + 2.40×10⁻⁹·K<sub>OW</sub>] · [ (1/P<sub>app,Caco-2</sub> &minus; 1/0.00153)<sup>0.346</sup> / 0.0075 + 1/0.00115 ] } )
+    </div>
+
     <div class="spectrum">
-      <div class="spectrum-track">
+      <div class="thresh-row">
+        <span>Classification threshold (|&part;lnF<sub>abs</sub>/&part;lnK<sub>OW</sub>| &divide; |&part;lnF<sub>abs</sub>/&part;lnP<sub>app</sub>|) = <b style="color:var(--ink);">2</b></span>
+      </div>
+      <div class="spectrum-track" id="spectrumTrack">
+        <div class="seg seg-perm" id="segPerm"></div>
+        <div class="seg seg-mix" id="segMix"></div>
+        <div class="seg seg-part" id="segPart"></div>
         <div class="spectrum-marker" id="marker" style="left:47.5%"></div>
       </div>
       <div class="spectrum-labels">
-        <span>permeability-limited (K<sub>OW</sub> &lt; 10⁶)</span>
-        <span>mixed (10⁶&ndash;10⁸)</span>
-        <span>partitioning-limited (K<sub>OW</sub> &gt; 10⁸)</span>
+        <span id="labelPerm">permeability-limited</span>
+        <span id="labelMix">mixed</span>
+        <span id="labelPart">partitioning-limited</span>
       </div>
+      <p class="spectrum-note">Boundaries are computed at the current P<sub>app,Caco-2</sub> from the local sensitivity of F<sub>abs</sub> to each parameter, not the fixed K<sub>OW</sub> cutoffs used in the original paper's Section&nbsp;4.3. See Regime classification below.</p>
     </div>
     </div>
 
@@ -505,14 +562,25 @@ Digoxin, 794, 1.1e-6"></textarea>
           </thead>
           <tbody id="batchBody"></tbody>
         </table>
-        <div class="batch-empty" id="batchEmpty">No results yet — paste chemicals above and click Calculate all.</div>
+        <div class="batch-empty" id="batchEmpty">No results yet. Paste chemicals above and click Calculate all.</div>
       </div>
     </div>
 
     <div class="formula">
-      <span class="tag">Equation</span>
-      F<sub>abs</sub> = 1 &minus; exp( &minus;16457 / { [(1&minus;2.40×10⁻⁹) + 2.40×10⁻⁹·K<sub>OW</sub>] · [ (1/P<sub>app,Caco-2</sub> &minus; 1/0.00153)<sup>0.346</sup> / 0.0075 + 1/0.00115 ] } )
+      <span class="tag">Regime classification</span>
+      The three regions above are defined from the local log&ndash;log sensitivity (elasticity) of F<sub>abs</sub> to each parameter, S<sub>x</sub> = &part;lnF<sub>abs</sub>/&part;lnx, evaluated numerically by central finite difference at the current (K<sub>OW</sub>, P<sub>app,Caco-2</sub>). The ratio |S<sub>Kow</sub>|/|S<sub>Papp</sub>| is then compared against a 2&times; threshold:<br><br>
+
+      <b style="color:var(--teal);">Permeability-limited</b>, ratio &le; 0.5. F<sub>abs</sub> here responds almost entirely to P<sub>app,Caco-2</sub>; changing K<sub>OW</sub> barely moves it. Physically, the chemical partitions into gut fluid without difficulty, so the rate-limiting step is how fast it crosses the intestinal membrane: membrane permeability is the bottleneck, not solubility.<br><br>
+
+      <b style="color:var(--amber);">Mixed</b>, ratio between 0.5 and 2. Neither parameter dominates by the 2&times; margin: K<sub>OW</sub> and P<sub>app,Caco-2</sub> both meaningfully move F<sub>abs</sub> here, so a reliable prediction needs reasonably accurate estimates of both: getting one right while guessing at the other isn't enough in this range.<br><br>
+
+      <b style="color:var(--red);">Partitioning-limited</b> (solubility-limited), ratio &ge; 2. F<sub>abs</sub> now responds almost entirely to K<sub>OW</sub>; changing P<sub>app,Caco-2</sub> barely moves it. Physically, the chemical is lipophilic enough that it struggles to partition out of the lipid/membrane environment into the aqueous gut fluid in the first place; once that partitioning step is the bottleneck, how fast it could cross the membrane no longer matters.
     </div>
+
+    <figure class="sens-map">
+      <img src="../assets/fabs-sensitivity-map.png" alt="Heatmap of predicted Fabs across the full log Kow / log Papp,Caco-2 domain, with the Papp-2x-sensitive, equal-sensitivity, and Kow-2x-sensitive boundary lines overlaid.">
+      <figcaption>Predicted F<sub>abs</sub> across the full K<sub>OW</sub>/P<sub>app,Caco-2</sub> domain, with the three sensitivity-ratio lines from above overlaid: where P<sub>app,Caco-2</sub> is 2&times; more sensitive (teal), where the two are equally sensitive (black), and where K<sub>OW</sub> is 2&times; more sensitive (red). The lines track the diagonal band where F<sub>abs</sub> transitions from Papp-controlled to Kow-controlled.</figcaption>
+    </figure>
   </div>
 
   <footer>
@@ -534,6 +602,12 @@ Digoxin, 794, 1.1e-6"></textarea>
   const regimeBox = document.getElementById('regimeBox');
   const regimeText = document.getElementById('regimeText');
   const marker = document.getElementById('marker');
+  const segPerm = document.getElementById('segPerm');
+  const segMix = document.getElementById('segMix');
+  const segPart = document.getElementById('segPart');
+  const labelPerm = document.getElementById('labelPerm');
+  const labelMix = document.getElementById('labelMix');
+  const labelPart = document.getElementById('labelPart');
 
   const PABL = 0.00153;
   const PABLprime = 0.00115;
@@ -541,6 +615,8 @@ Digoxin, 794, 1.1e-6"></textarea>
   const n = 0.346;
   const vO = 2.40e-9;
   const K = 16457;
+
+  const threshold = 2; // classification threshold on |S_Kow|/|S_Papp|
 
   function computeFabs(kow, papp){
     // guard: papp must be strictly less than PABL for a real, positive base
@@ -551,6 +627,61 @@ Digoxin, 794, 1.1e-6"></textarea>
     const term2 = Math.pow(inv, n)/m + 1/PABLprime;
     const exponent = -K / (term1 * term2);
     return 1 - Math.exp(exponent);
+  }
+
+  // Local log-log sensitivity (elasticity) of Fabs to Kow and Papp, via central
+  // finite difference. This replaces the paper's visually-inspected regime
+  // cutoffs with a numeric, reproducible criterion.
+  const FD_DLOG = 0.0005; // finite-difference step, in log10 units
+
+  function sensitivities(kow, papp){
+    const kowHi = kow * Math.pow(10, FD_DLOG), kowLo = kow * Math.pow(10, -FD_DLOG);
+    const papHi = papp * Math.pow(10, FD_DLOG), papLo = papp * Math.pow(10, -FD_DLOG);
+    const fKowHi = computeFabs(kowHi, papp), fKowLo = computeFabs(kowLo, papp);
+    const fPapHi = computeFabs(kow, papHi), fPapLo = computeFabs(kow, papLo);
+    if ([fKowHi, fKowLo, fPapHi, fPapLo].some(v => v === null || v <= 0)) return null;
+    // log10-based elasticity: mathematically identical to the ln-based form
+    // (the ln(10) scale factor cancels in the ratio), kept in log10 for
+    // consistency with the rest of this file.
+    const sKow = (Math.log10(fKowHi) - Math.log10(fKowLo)) / (Math.log10(kowHi) - Math.log10(kowLo));
+    const sPap = (Math.log10(fPapHi) - Math.log10(fPapLo)) / (Math.log10(papHi) - Math.log10(papLo));
+    return { sKow, sPap };
+  }
+
+  function classify(kow, papp, thresh){
+    const s = sensitivities(kow, papp);
+    if (!s) return null;
+    const ratio = Math.abs(s.sKow) / Math.abs(s.sPap);
+    let regime;
+    if (ratio <= 1/thresh) regime = 'perm';
+    else if (ratio >= thresh) regime = 'part';
+    else regime = 'mix';
+    return { regime, ratio, sKow: s.sKow, sPap: s.sPap };
+  }
+
+  // Scan across the full logKow domain at a fixed Papp to find where the
+  // sensitivity ratio crosses 1/threshold (perm->mix) and threshold (mix->part).
+  function findBoundaries(papp, thresh){
+    const minL = -9, maxL = 10, steps = 500;
+    const targets = [1/thresh, thresh];
+    const found = [null, null];
+    let prevLog = null, prevRatio = null;
+    for (let i = 0; i <= steps; i++){
+      const logk = minL + (maxL - minL) * i / steps;
+      const c = classify(Math.pow(10, logk), papp, thresh);
+      const ratio = c ? Math.max(c.ratio, 1e-12) : null;
+      if (prevRatio !== null && ratio !== null){
+        targets.forEach((t, idx) => {
+          if (found[idx] === null && (prevRatio - t) * (ratio - t) < 0){
+            const lr0 = Math.log10(prevRatio), lr1 = Math.log10(ratio), lt = Math.log10(t);
+            const frac = (lt - lr0) / (lr1 - lr0);
+            found[idx] = prevLog + frac * (logk - prevLog);
+          }
+        });
+      }
+      prevLog = logk; prevRatio = ratio;
+    }
+    return found; // [lowLogKow|null, highLogKow|null]
   }
 
   function fmtSci(v){
@@ -589,32 +720,126 @@ Digoxin, 794, 1.1e-6"></textarea>
       fabsBar.style.width = '0%';
       regimeBox.className = 'regime warn';
       regimeText.innerHTML = '<b>Out of domain.</b> P<sub>app,Caco-2</sub> must be below the fitted ABL permeability limit (~0.00153 cm/s) for the model to return a defined value.';
+      updateSpectrum(papp);
       return;
     }
     const pct = Math.max(0, Math.min(100, f*100));
     fabsBig.innerHTML = pct.toFixed(1) + '<span class="pct">%</span>';
     fabsBar.style.width = pct.toFixed(1) + '%';
 
-    // regime classification, based on Section 4.3 thresholds
+    // regime classification, from local sensitivity of Fabs to Kow vs Papp
+    const c = classify(kow, papp, threshold);
     let cls = 'regime', text = '';
-    if (kow < 1e6){
-      cls += '';
-      text = '<b>Transmembrane permeability-limited.</b> At this K<sub>OW</sub>, F<sub>abs</sub> is governed almost entirely by P<sub>app,Caco-2</sub> &mdash; K<sub>OW</sub> has little influence here.';
-    } else if (kow <= 1e8){
-      cls += ' mix';
-      text = '<b>Mixed regime.</b> Both K<sub>OW</sub> and P<sub>app,Caco-2</sub> meaningfully affect F<sub>abs</sub> in this range &mdash; reliable estimates of both are needed.';
+    if (!c){
+      cls = 'regime warn';
+      text = '<b>Sensitivity undefined here.</b> Try a K<sub>OW</sub> or P<sub>app,Caco-2</sub> slightly away from the domain edge.';
     } else {
-      cls += '';
-      text = '<b>Partitioning-limited (solubility-limited).</b> F<sub>abs</sub> is now driven by K<sub>OW</sub>, since the chemical struggles to partition into gut fluid; P<sub>app,Caco-2</sub> barely matters here.';
+      const rInv = c.ratio >= 1 ? c.ratio : 1/c.ratio;
+      const ratioTxt = (!isFinite(rInv) || rInv > 999) ? '&gt;999&times;' : rInv.toFixed(2) + '&times;';
+      const nums = '(|&part;lnF<sub>abs</sub>/&part;lnK<sub>OW</sub>| = ' + Math.abs(c.sKow).toFixed(3) +
+        ', |&part;lnF<sub>abs</sub>/&part;lnP<sub>app</sub>| = ' + Math.abs(c.sPap).toFixed(3) + ')';
+      if (c.regime === 'perm'){
+        cls = 'regime';
+        text = '<b>Permeability-limited.</b> F<sub>abs</sub> is ' + ratioTxt + ' more sensitive to P<sub>app,Caco-2</sub> than to K<sub>OW</sub> here ' + nums + '; K<sub>OW</sub> has little influence.';
+      } else if (c.regime === 'part'){
+        cls = 'regime part';
+        text = '<b>Partitioning-limited.</b> F<sub>abs</sub> is ' + ratioTxt + ' more sensitive to K<sub>OW</sub> than to P<sub>app,Caco-2</sub> here ' + nums + '; P<sub>app,Caco-2</sub> barely matters.';
+      } else {
+        cls = 'regime mix';
+        text = '<b>Mixed-control regime.</b> K<sub>OW</sub> and P<sub>app,Caco-2</sub> sensitivities are within ' + threshold + '&times; of each other here ' + nums + '; both properties meaningfully affect absorption.';
+      }
     }
     regimeBox.className = cls;
     regimeText.innerHTML = text;
 
-    // marker position across full slider domain (-9 to 10 on log Kow)
-    const minL=-9, maxL=10;
-    const clampedLog = Math.max(minL, Math.min(maxL, logKow));
-    const posPct = ((clampedLog - minL)/(maxL-minL))*100;
-    marker.style.left = posPct.toFixed(1) + '%';
+    updateSpectrum(papp, logKow);
+  }
+
+  // Build the list of regimes that actually exist in the Kow domain at this
+  // Papp, each given an equal share of the bar's width (rather than a share
+  // proportional to how much Kow-range it covers, which made permeability-
+  // limited dominate the bar visually since it spans most of the domain).
+  // Every existing regime gets a guaranteed minimum share of the bar (so mixed
+  // and partitioning-limited never shrink to an invisible sliver), and the
+  // remaining width beyond that floor is split proportionally to how much
+  // Kow-range each regime actually covers -- so the bar still visibly
+  // responds as Papp changes, it just can't be squeezed to nothing.
+  const SEG_MIN_PCT = 15;
+
+  function buildSegmentLayout(lowLog, highLog, minL, maxL){
+    const raw = [];
+    if (lowLog !== null) raw.push({ regime: 'perm', logStart: minL, logEnd: lowLog });
+    // the mixed segment always spans from wherever permeability-limited ends
+    // (or the domain start, if it never was permeability-limited) to wherever
+    // partitioning-limited begins (or the domain end, if it never gets there)
+    if (lowLog !== null || highLog !== null){
+      raw.push({ regime: 'mix', logStart: lowLog !== null ? lowLog : minL, logEnd: highLog !== null ? highLog : maxL });
+    }
+    if (highLog !== null) raw.push({ regime: 'part', logStart: highLog, logEnd: maxL });
+    if (raw.length === 0){
+      raw.push({ regime: 'mix', logStart: minL, logEnd: maxL });
+    }
+    const n = raw.length;
+    const floorTotal = Math.min(SEG_MIN_PCT * n, 100);
+    const floor = floorTotal / n;
+    const remainder = 100 - floorTotal;
+    const totalSpan = raw.reduce((sum, s) => sum + (s.logEnd - s.logStart), 0);
+    let cursor = 0;
+    return raw.map(seg => {
+      const span = seg.logEnd - seg.logStart;
+      const share = totalSpan > 0 ? (span / totalSpan) * remainder : remainder / n;
+      const width = floor + share;
+      const out = { ...seg, pctStart: cursor, pctEnd: cursor + width };
+      cursor += width;
+      return out;
+    });
+  }
+
+  function logKowToPct(logKow, segments, minL, maxL){
+    const clamped = Math.max(minL, Math.min(maxL, logKow));
+    const seg = segments.find(s => clamped >= s.logStart && clamped <= s.logEnd) || segments[segments.length-1];
+    const span = seg.logEnd - seg.logStart;
+    const frac = span > 0 ? (clamped - seg.logStart)/span : 0;
+    return seg.pctStart + frac*(seg.pctEnd - seg.pctStart);
+  }
+
+  function updateSpectrum(papp, logKow){
+    const minL = -9, maxL = 10;
+    if (!isFinite(papp) || papp <= 0 || papp >= PABL){
+      segPerm.style.width = '100%'; segMix.style.width = '0%'; segPart.style.width = '0%';
+      labelPerm.innerHTML = 'permeability-limited';
+      labelMix.innerHTML = 'mixed';
+      labelPart.innerHTML = 'partitioning-limited';
+      if (isFinite(logKow)){
+        marker.style.left = logKowToPct(logKow, [{regime:'perm',logStart:minL,logEnd:maxL,pctStart:0,pctEnd:100}], minL, maxL).toFixed(1) + '%';
+      }
+      return;
+    }
+    const [lowLog, highLog] = findBoundaries(papp, threshold);
+    const segments = buildSegmentLayout(lowLog, highLog, minL, maxL);
+    const widthOf = (regime) => {
+      const seg = segments.find(s => s.regime === regime);
+      return seg ? (seg.pctEnd - seg.pctStart) : 0;
+    };
+    segPerm.style.width = widthOf('perm').toFixed(2) + '%';
+    segMix.style.width = widthOf('mix').toFixed(2) + '%';
+    segPart.style.width = widthOf('part').toFixed(2) + '%';
+
+    if (isFinite(logKow)){
+      marker.style.left = logKowToPct(logKow, segments, minL, maxL).toFixed(1) + '%';
+    }
+
+    labelPerm.innerHTML = 'permeability-limited' + (lowLog !== null ? ' (K<sub>OW</sub> &lt; ' + fmtSci(Math.pow(10, lowLog)) + ')' : '');
+    if (lowLog !== null && highLog !== null){
+      labelMix.innerHTML = 'mixed (K<sub>OW</sub> ' + fmtSci(Math.pow(10, lowLog)) + '&ndash;' + fmtSci(Math.pow(10, highLog)) + ')';
+    } else if (lowLog !== null){
+      labelMix.innerHTML = 'mixed (K<sub>OW</sub> &gt; ' + fmtSci(Math.pow(10, lowLog)) + ')';
+    } else if (highLog !== null){
+      labelMix.innerHTML = 'mixed (K<sub>OW</sub> &lt; ' + fmtSci(Math.pow(10, highLog)) + ')';
+    } else {
+      labelMix.innerHTML = 'mixed';
+    }
+    labelPart.innerHTML = 'partitioning-limited' + (highLog !== null ? ' (K<sub>OW</sub> &gt; ' + fmtSci(Math.pow(10, highLog)) + ')' : '');
   }
 
   kowSlider.addEventListener('input', () => {
@@ -626,16 +851,16 @@ Digoxin, 794, 1.1e-6"></textarea>
   kowNum.addEventListener('change', () => {
     const v = parseFloat(kowNum.value);
     if (!isFinite(v) || v<=0) return;
-    const logv = Math.log10(v);
-    kowSlider.value = Math.max(-9, Math.min(10, logv));
-    updateFromLogs(parseFloat(kowSlider.value), parseFloat(papSlider.value));
+    const logv = Math.max(-9, Math.min(10, Math.log10(v)));
+    kowSlider.value = logv; // slider handle may visually snap to its step; the typed value stays exact
+    updateFromLogs(logv, parseFloat(papSlider.value));
   });
   papNum.addEventListener('change', () => {
     const v = parseFloat(papNum.value);
     if (!isFinite(v) || v<=0) return;
-    const logv = Math.log10(v);
-    papSlider.value = Math.max(-8, Math.min(-3, logv));
-    updateFromLogs(parseFloat(kowSlider.value), parseFloat(papSlider.value));
+    const logv = Math.max(-8, Math.min(-3, Math.log10(v)));
+    papSlider.value = logv; // slider handle may visually snap to its step; the typed value stays exact
+    updateFromLogs(parseFloat(kowSlider.value), logv);
   });
 
   // init
@@ -667,10 +892,12 @@ Digoxin, 794, 1.1e-6"></textarea>
 
   let lastResults = [];
 
-  function regimePill(kow){
-    if (kow < 1e6) return '<span class="regime-pill perm">permeability-limited</span>';
-    if (kow <= 1e8) return '<span class="regime-pill mix">mixed</span>';
-    return '<span class="regime-pill part">partitioning-limited</span>';
+  function regimePill(kow, papp){
+    const c = classify(kow, papp, threshold);
+    if (!c) return '<span class="regime-pill mix">n/a</span>';
+    if (c.regime === 'perm') return '<span class="regime-pill perm">permeability-limited</span>';
+    if (c.regime === 'part') return '<span class="regime-pill part">partitioning-limited</span>';
+    return '<span class="regime-pill mix">mixed</span>';
   }
 
   function parseNum(s){
@@ -724,7 +951,7 @@ Digoxin, 794, 1.1e-6"></textarea>
 
     if (rows.length === 0){
       batchEmpty.style.display = 'block';
-      batchEmpty.textContent = 'No valid rows found — paste chemicals as "name, Kow, Papp" per line.';
+      batchEmpty.textContent = 'No valid rows found. Paste chemicals as "name, Kow, Papp" per line.';
       batchCount.textContent = '';
       batchDownload.disabled = true;
       return;
@@ -747,17 +974,19 @@ Digoxin, 794, 1.1e-6"></textarea>
             '<td>' + fmtSci(row.kow) + '</td>' +
             '<td>' + fmtSci(row.papp) + '</td>' +
             '<td class="err-cell">out of domain</td>' +
-            '<td>&mdash;</td>';
+            '<td>N/A</td>';
           lastResults.push({ name: row.name, kow: row.kow, papp: row.papp, fabs: 'out of domain', regime: '' });
         } else {
           const pct = Math.max(0, Math.min(100, f*100));
+          const c = classify(row.kow, row.papp, threshold);
+          const regimeLabel = !c ? 'n/a' : (c.regime === 'perm' ? 'permeability-limited' : (c.regime === 'part' ? 'partitioning-limited' : 'mixed'));
           tr.innerHTML =
             '<td class="name-cell">' + escapeHtml(row.name) + '</td>' +
             '<td>' + fmtSci(row.kow) + '</td>' +
             '<td>' + fmtSci(row.papp) + '</td>' +
             '<td class="fabs-cell">' + pct.toFixed(1) + '%</td>' +
-            '<td>' + regimePill(row.kow) + '</td>';
-          lastResults.push({ name: row.name, kow: row.kow, papp: row.papp, fabs: pct.toFixed(1) + '%', regime: row.kow < 1e6 ? 'permeability-limited' : (row.kow <= 1e8 ? 'mixed' : 'partitioning-limited') });
+            '<td>' + regimePill(row.kow, row.papp) + '</td>';
+          lastResults.push({ name: row.name, kow: row.kow, papp: row.papp, fabs: pct.toFixed(1) + '%', regime: regimeLabel });
           okCount++;
         }
       }
@@ -798,7 +1027,7 @@ Digoxin, 794, 1.1e-6"></textarea>
     batchInput.value = '';
     batchBody.innerHTML = '';
     batchEmpty.style.display = 'block';
-    batchEmpty.textContent = 'No results yet — paste chemicals above and click Calculate all.';
+    batchEmpty.textContent = 'No results yet. Paste chemicals above and click Calculate all.';
     batchCount.textContent = '';
     batchDownload.disabled = true;
     lastResults = [];
