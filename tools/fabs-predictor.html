@@ -637,7 +637,7 @@
     </div>
 
     <div class="mode-panel" id="panelBatch">
-      <p class="batch-intro">Paste one chemical per line as <code>name, Kow, Papp_Caco-2</code> (Papp in cm/s). A header row is optional and will be detected automatically.</p>
+      <p class="batch-intro">Paste one chemical per line as <code>name, Kow, Papp_Caco-2</code> (Papp in cm/s), or just a <code>name</code> or <code>CAS number</code> alone to look it up in the local dataset (same one used by the single-chemical search above). A header row is optional and will be detected automatically.</p>
       <textarea id="batchInput" spellcheck="false" placeholder="Diazepam, 2.82e1, 4.5e-5
 Atenolol, 1.5, 3.2e-6
 Digoxin, 794, 1.1e-6"></textarea>
@@ -1104,7 +1104,9 @@ Digoxin, 794, 1.1e-6"></textarea>
         name = 'Chemical ' + (rows.length + 1);
         [kowStr, papStr] = cells;
       } else {
-        rows.push({ raw: line, error: 'Need at least Kow and Papp, comma-separated.' });
+        // single cell: name or CAS number, to be resolved against the local
+        // chemical dataset (measured/predicted Kow & Papp) at run time
+        rows.push({ name: cells[0], lookupQuery: cells[0] });
         return;
       }
       const kow = parseNum(kowStr);
@@ -1123,57 +1125,109 @@ Digoxin, 794, 1.1e-6"></textarea>
     return rows;
   }
 
-  function runBatch(){
-    const rows = parseBatchInput(batchInput.value);
-    lastResults = [];
-    batchBody.innerHTML = '';
-
-    if (rows.length === 0){
-      batchEmpty.style.display = 'block';
-      batchEmpty.textContent = 'No valid rows found. Paste chemicals as "name, Kow, Papp" per line.';
-      batchCount.textContent = '';
-      batchDownload.disabled = true;
-      return;
+  // Resolve a single-cell batch entry (name or CAS number) against the local
+  // chemical dataset. Uses exact matching (not substring) since batch rows
+  // are processed unattended -- a fuzzy match could silently pick the wrong
+  // chemical.
+  function findInDB(query, db){
+    const q = String(query).trim();
+    const casLike = /^\d{1,7}-\d{2}-\d$/.test(q);
+    if (casLike) {
+      const hit = db.find(c => c.c === q);
+      return hit ? { hit } : { notFound: true };
     }
-    batchEmpty.style.display = 'none';
+    const qLower = q.toLowerCase();
+    const exact = db.filter(c => c.n && c.n.toLowerCase() === qLower);
+    if (exact.length === 1) return { hit: exact[0] };
+    if (exact.length > 1) return { ambiguous: exact.length };
+    return { notFound: true };
+  }
 
-    let okCount = 0;
-    rows.forEach(row => {
-      const tr = document.createElement('tr');
-      if (row.error){
-        tr.innerHTML =
-          '<td class="name-cell">' + escapeHtml(row.name || row.raw) + '</td>' +
-          '<td colspan="4" class="err-cell">' + escapeHtml(row.error) + '</td>';
-        lastResults.push({ name: row.name || row.raw, kow:'', papp:'', fabs:'', regime:'error: ' + row.error });
-      } else {
-        const f = computeFabs(row.kow, row.papp);
-        if (f === null){
-          tr.innerHTML =
-            '<td class="name-cell">' + escapeHtml(row.name) + '</td>' +
-            '<td>' + fmtSci(row.kow) + '</td>' +
-            '<td>' + fmtSci(row.papp) + '</td>' +
-            '<td class="err-cell">out of domain</td>' +
-            '<td>N/A</td>';
-          lastResults.push({ name: row.name, kow: row.kow, papp: row.papp, fabs: 'out of domain', regime: '' });
-        } else {
-          const pct = Math.max(0, Math.min(100, f*100));
-          const c = classify(row.kow, row.papp, threshold);
-          const regimeLabel = !c ? 'n/a' : (c.regime === 'perm' ? 'permeability-limited' : (c.regime === 'part' ? 'partitioning-limited' : 'mixed'));
-          tr.innerHTML =
-            '<td class="name-cell">' + escapeHtml(row.name) + '</td>' +
-            '<td>' + fmtSci(row.kow) + '</td>' +
-            '<td>' + fmtSci(row.papp) + '</td>' +
-            '<td class="fabs-cell">' + pct.toFixed(1) + '%</td>' +
-            '<td>' + regimePill(row.kow, row.papp) + '</td>';
-          lastResults.push({ name: row.name, kow: row.kow, papp: row.papp, fabs: pct.toFixed(1) + '%', regime: regimeLabel });
-          okCount++;
+  function sourceBadge(src){
+    if (src === 'm') return '<span class="regime-pill perm" title="Measured (Honda et al.)">measured</span>';
+    if (src === 'q') return '<span class="regime-pill mix" title="QSPR-predicted -- treat as a screening-level estimate only">predicted</span>';
+    return '';
+  }
+
+  function runBatch(){
+    batchRun.disabled = true;
+    batchRun.textContent = 'Looking up chemicals…';
+    loadChemDB().catch(() => null).then(db => {
+      const rows = parseBatchInput(batchInput.value);
+      lastResults = [];
+      batchBody.innerHTML = '';
+
+      // resolve any lookup-only rows (single name/CAS cell) against the local dataset
+      rows.forEach(row => {
+        if (!row.lookupQuery) return;
+        if (!db){
+          row.error = 'Could not load the local chemical dataset.';
+          return;
         }
-      }
-      batchBody.appendChild(tr);
-    });
+        const result = findInDB(row.lookupQuery, db);
+        if (result.notFound){
+          row.error = 'Not found in local dataset (' + row.lookupQuery + '). Paste "name, Kow, Papp" instead, or check spelling/CAS.';
+        } else if (result.ambiguous){
+          row.error = result.ambiguous + ' name matches in local dataset -- use the CAS number instead.';
+        } else {
+          row.name = result.hit.n;
+          row.kow = result.hit.k;
+          row.papp = result.hit.p;
+          row.source = result.hit.s;
+        }
+      });
 
-    batchCount.textContent = okCount + ' of ' + rows.length + ' calculated';
-    batchDownload.disabled = lastResults.length === 0;
+      if (rows.length === 0){
+        batchEmpty.style.display = 'block';
+        batchEmpty.textContent = 'No valid rows found. Paste chemicals as "name, Kow, Papp" per line, or just a name/CAS to look it up.';
+        batchCount.textContent = '';
+        batchDownload.disabled = true;
+      } else {
+        batchEmpty.style.display = 'none';
+
+        let okCount = 0;
+        rows.forEach(row => {
+          const tr = document.createElement('tr');
+          const nameLabel = escapeHtml(row.name || row.raw) + (row.source ? ' ' + sourceBadge(row.source) : '');
+          if (row.error){
+            tr.innerHTML =
+              '<td class="name-cell">' + nameLabel + '</td>' +
+              '<td colspan="4" class="err-cell">' + escapeHtml(row.error) + '</td>';
+            lastResults.push({ name: row.name || row.raw, kow:'', papp:'', fabs:'', regime:'error: ' + row.error, source: row.source || '' });
+          } else {
+            const f = computeFabs(row.kow, row.papp);
+            if (f === null){
+              tr.innerHTML =
+                '<td class="name-cell">' + nameLabel + '</td>' +
+                '<td>' + fmtSci(row.kow) + '</td>' +
+                '<td>' + fmtSci(row.papp) + '</td>' +
+                '<td class="err-cell">out of domain</td>' +
+                '<td>N/A</td>';
+              lastResults.push({ name: row.name, kow: row.kow, papp: row.papp, fabs: 'out of domain', regime: '', source: row.source || '' });
+            } else {
+              const pct = Math.max(0, Math.min(100, f*100));
+              const c = classify(row.kow, row.papp, threshold);
+              const regimeLabel = !c ? 'n/a' : (c.regime === 'perm' ? 'permeability-limited' : (c.regime === 'part' ? 'partitioning-limited' : 'mixed'));
+              tr.innerHTML =
+                '<td class="name-cell">' + nameLabel + '</td>' +
+                '<td>' + fmtSci(row.kow) + '</td>' +
+                '<td>' + fmtSci(row.papp) + '</td>' +
+                '<td class="fabs-cell">' + pct.toFixed(1) + '%</td>' +
+                '<td>' + regimePill(row.kow, row.papp) + '</td>';
+              lastResults.push({ name: row.name, kow: row.kow, papp: row.papp, fabs: pct.toFixed(1) + '%', regime: regimeLabel, source: row.source || '' });
+              okCount++;
+            }
+          }
+          batchBody.appendChild(tr);
+        });
+
+        batchCount.textContent = okCount + ' of ' + rows.length + ' calculated';
+        batchDownload.disabled = lastResults.length === 0;
+      }
+
+      batchRun.disabled = false;
+      batchRun.textContent = 'Calculate all';
+    });
   }
 
   function escapeHtml(s){
@@ -1182,12 +1236,13 @@ Digoxin, 794, 1.1e-6"></textarea>
 
   function downloadCSV(){
     if (lastResults.length === 0) return;
-    const header = ['name','Kow','Papp_Caco2_cm_s','Fabs','regime'];
+    const header = ['name','Kow','Papp_Caco2_cm_s','Fabs','regime','data_source'];
     const lines = [header.join(',')];
+    const sourceLabel = { m: 'measured (Honda et al.)', q: 'predicted (QSPR)' };
     lastResults.forEach(r => {
       lines.push([
         '"' + String(r.name).replace(/"/g,'""') + '"',
-        r.kow, r.papp, r.fabs, r.regime
+        r.kow, r.papp, r.fabs, r.regime, sourceLabel[r.source] || 'typed'
       ].join(','));
     });
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
