@@ -194,8 +194,9 @@
   }
 
   .lookup-hint{
+    position:relative;
     margin-bottom:24px;
-    padding:12px 16px;
+    padding:14px 16px;
     background:rgba(47,125,104,.07);
     border:1px solid var(--panel-edge);
     border-radius:9px;
@@ -204,6 +205,77 @@
     line-height:1.55;
   }
   .lookup-hint a{color:var(--teal); font-weight:600;}
+  .lookup-label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--ink);
+    font-weight:500;
+    margin-bottom:8px;
+  }
+  .lookup-input-wrap{position:relative;}
+  #lookupInput{
+    width:100%;
+    background:var(--panel);
+    border:1px solid var(--panel-edge);
+    border-radius:7px;
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:14px;
+    padding:9px 12px;
+  }
+  #lookupInput:focus{outline:2px solid var(--teal); outline-offset:1px;}
+  .lookup-results{
+    display:none;
+    position:absolute;
+    top:calc(100% + 4px);
+    left:0; right:0;
+    background:var(--panel);
+    border:1px solid var(--panel-edge);
+    border-radius:9px;
+    box-shadow:0 16px 32px -12px rgba(38,51,46,.25);
+    max-height:280px;
+    overflow-y:auto;
+    z-index:10;
+  }
+  .lookup-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:9px 12px;
+    cursor:pointer;
+    border-bottom:1px solid var(--grid);
+    font-size:13px;
+  }
+  .lookup-item:last-child{border-bottom:none;}
+  .lookup-item:hover{background:var(--bg-1);}
+  .lookup-name{color:var(--ink); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .lookup-cas{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--ink-dim);
+    white-space:nowrap;
+  }
+  .lookup-badge{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:9.5px;
+    letter-spacing:.03em;
+    text-transform:uppercase;
+    padding:2px 7px;
+    border-radius:999px;
+    white-space:nowrap;
+  }
+  .lookup-badge.measured{background:rgba(47,125,104,.15); color:var(--teal);}
+  .lookup-badge.predicted{background:rgba(181,119,47,.15); color:var(--amber);}
+  .lookup-empty{padding:10px 12px; font-size:13px; color:var(--ink-dim);}
+  .lookup-status{
+    margin:10px 0 0;
+    font-size:11.5px;
+    color:var(--ink-dim);
+    line-height:1.5;
+  }
+  .lookup-status.picked{color:var(--teal);}
+  .lookup-status.picked-predicted{color:var(--amber);}
 
   .regime{
     margin-top:22px;
@@ -495,7 +567,12 @@
 
     <div class="mode-panel active" id="panelSingle">
     <div class="lookup-hint">
-      Don't know K<sub>OW</sub> or P<sub>app,Caco-2</sub> for your chemical? <a href="https://comptox.epa.gov/dashboard/" target="_blank" rel="noopener">Look it up on EPA's CompTox Chemicals Dashboard &rarr;</a>
+      <label class="lookup-label" for="lookupInput">Don't know K<sub>OW</sub> or P<sub>app,Caco-2</sub>? Search by name or CAS number</label>
+      <div class="lookup-input-wrap">
+        <input type="text" id="lookupInput" autocomplete="off" placeholder="e.g. atrazine or 1912-24-9">
+        <div class="lookup-results" id="lookupResults"></div>
+      </div>
+      <p class="lookup-status" id="lookupStatus">Searches a local dataset of 10,564 chemicals extracted from EPA's httk R package (Honda et al.). Not found? <a href="https://comptox.epa.gov/dashboard/" target="_blank" rel="noopener">Try EPA's CompTox Dashboard &rarr;</a></p>
     </div>
     <div class="grid2">
       <div class="col">
@@ -876,6 +953,93 @@ Digoxin, 794, 1.1e-6"></textarea>
     const logv = Math.max(-8, Math.min(-3, Math.log10(v)));
     papSlider.value = logv; // slider handle may visually snap to its step; the typed value stays exact
     updateFromLogs(parseFloat(kowSlider.value), logv);
+  });
+
+  // ---- Chemical lookup (local dataset extracted from EPA's httk R package) ----
+  const lookupInput = document.getElementById('lookupInput');
+  const lookupResults = document.getElementById('lookupResults');
+  const lookupStatus = document.getElementById('lookupStatus');
+  const lookupStatusDefault = lookupStatus.innerHTML;
+  let chemDB = null;
+  let chemDBPromise = null;
+  let lookupDebounce = null;
+
+  function loadChemDB(){
+    if (!chemDBPromise){
+      chemDBPromise = fetch('../assets/chem-lookup.json').then(r => r.json()).then(d => { chemDB = d; return d; });
+    }
+    return chemDBPromise;
+  }
+
+  function runLookup(q){
+    loadChemDB().then(db => {
+      const casLike = /^\d{1,7}-\d{2}-\d$/.test(q);
+      let matches;
+      if (casLike){
+        matches = db.filter(c => c.c === q);
+      } else {
+        matches = db.filter(c => c.n && c.n.toLowerCase().includes(q)).slice(0, 8);
+      }
+      renderLookupResults(matches, q);
+    }).catch(() => {
+      lookupResults.innerHTML = '<div class="lookup-empty">Couldn\'t load the local dataset.</div>';
+      lookupResults.style.display = 'block';
+    });
+  }
+
+  function renderLookupResults(matches, q){
+    if (matches.length === 0){
+      lookupResults.innerHTML = '<div class="lookup-empty">No match for &ldquo;' + escapeHtml(q) + '&rdquo; in the local dataset.</div>';
+      lookupResults.style.display = 'block';
+      return;
+    }
+    lookupResults.innerHTML = matches.map((c, i) => {
+      const badge = c.s === 'm'
+        ? '<span class="lookup-badge measured">measured</span>'
+        : '<span class="lookup-badge predicted">predicted</span>';
+      return '<div class="lookup-item" data-idx="' + i + '">' +
+        '<span class="lookup-name">' + escapeHtml(c.n) + '</span>' +
+        '<span class="lookup-cas">' + escapeHtml(c.c || '') + '</span>' +
+        badge +
+      '</div>';
+    }).join('');
+    lookupResults.style.display = 'block';
+    lookupResults.querySelectorAll('.lookup-item').forEach((el, i) => {
+      el.addEventListener('click', () => selectLookupResult(matches[i]));
+    });
+  }
+
+  function selectLookupResult(c){
+    kowNum.value = fmtSciPlain(c.k);
+    kowNum.dispatchEvent(new Event('change'));
+    papNum.value = fmtSciPlain(c.p);
+    papNum.dispatchEvent(new Event('change'));
+    lookupInput.value = c.n;
+    lookupResults.style.display = 'none';
+    if (c.s === 'm'){
+      lookupStatus.className = 'lookup-status picked';
+      lookupStatus.innerHTML = 'Loaded ' + escapeHtml(c.n) + ' &mdash; <b>measured</b> Caco-2 (Honda et al.), CAS ' + escapeHtml(c.c || 'n/a') + '.';
+    } else {
+      lookupStatus.className = 'lookup-status picked-predicted';
+      lookupStatus.innerHTML = 'Loaded ' + escapeHtml(c.n) + ' &mdash; <b>QSPR-predicted</b> Caco-2, CAS ' + escapeHtml(c.c || 'n/a') + '. Predicted values can carry substantial uncertainty; treat as a screening-level estimate only.';
+    }
+  }
+
+  lookupInput.addEventListener('input', () => {
+    clearTimeout(lookupDebounce);
+    const q = lookupInput.value.trim().toLowerCase();
+    lookupStatus.className = 'lookup-status';
+    lookupStatus.innerHTML = lookupStatusDefault;
+    if (q.length < 2){
+      lookupResults.style.display = 'none';
+      return;
+    }
+    lookupDebounce = setTimeout(() => runLookup(q), 120);
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.lookup-input-wrap')){
+      lookupResults.style.display = 'none';
+    }
   });
 
   // init
