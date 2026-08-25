@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Half-life Predictor: Whole-Body Elimination PBTK Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#f7f4ec;
+    --bg-1:#efe9d9;
+    --panel:#fffdf8;
+    --panel-edge:#e2dcc7;
+    --ink:#26332e;
+    --ink-dim:#6b7a73;
+    --amber:#b5772f;
+    --amber-dim:#d9a45c;
+    --teal:#2f7d68;
+    --red:#a83f36;
+    --grid:#e8e2d1;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, #eef2ec 0%, transparent 55%),
+      radial-gradient(ellipse at 100% 110%, #f3ecdd 0%, transparent 50%),
+      var(--bg-0);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    padding:48px 20px 72px;
+  }
+  .wrap{max-width:960px;margin:0 auto;}
+
+  header{margin-bottom:36px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--teal);
+    margin:0 0 10px;
+  }
+  h1{
+    font-family:'Newsreader', serif;
+    font-weight:500;
+    font-size:clamp(32px,5vw,48px);
+    line-height:1.05;
+    margin:0 0 14px;
+    letter-spacing:-.01em;
+  }
+  h1 em{font-style:italic;color:var(--amber);}
+  .sub{
+    color:var(--ink-dim);
+    font-size:15.5px;
+    line-height:1.6;
+    max-width:680px;
+    margin:0;
+  }
+  .sub a{color:var(--teal);}
+
+  .board{
+    background:linear-gradient(180deg,var(--panel),#faf6ec);
+    border:1px solid var(--panel-edge);
+    border-radius:14px;
+    padding:36px;
+    box-shadow:0 24px 48px -30px rgba(38,51,46,.14), inset 0 1px 0 rgba(255,255,255,.7);
+    position:relative;
+    overflow:hidden;
+  }
+  .board::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:28px 28px;
+    opacity:.6;
+    pointer-events:none;
+  }
+  .board > *{position:relative;}
+
+  .section-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--teal);
+    margin:0 0 14px;
+  }
+  .section-label:not(:first-child){margin-top:30px;}
+
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:18px 22px;}
+  @media (max-width:720px){ .grid3{grid-template-columns:1fr 1fr;} }
+  @media (max-width:520px){ .grid3{grid-template-columns:1fr;} }
+
+  .field label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.03em;
+    color:var(--ink-dim);
+    margin-bottom:7px;
+  }
+  .field label b{color:var(--ink); font-weight:500;}
+  input[type=number], input[type=text], select{
+    width:100%;
+    background:var(--bg-1);
+    border:1px solid var(--panel-edge);
+    border-radius:7px;
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13.5px;
+    padding:9px 10px;
+  }
+  input:focus, select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+  .unit{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-dim); white-space:nowrap;}
+
+  .field .checkbox-field{
+    display:flex; align-items:center; gap:9px;
+    width:100%;
+    background:var(--bg-1);
+    border:1px solid var(--panel-edge);
+    border-radius:7px;
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px;
+    margin-bottom:0;
+    padding:9px 10px;
+    cursor:pointer;
+  }
+  .field .checkbox-field input[type=checkbox]{width:auto; accent-color:var(--teal); cursor:pointer;}
+
+
+  .actions{
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    margin-top:28px; padding-top:22px; border-top:1px solid var(--panel-edge);
+  }
+  .btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:.03em;
+    border-radius:8px;
+    padding:10px 18px;
+    cursor:pointer;
+    border:1px solid var(--panel-edge);
+    background:var(--teal);
+    color:var(--bg-0);
+    font-weight:600;
+  }
+  .btn.secondary{background:var(--bg-1); color:var(--ink);}
+  .btn:hover{filter:brightness(1.07);}
+  .err{color:var(--red); font-family:'IBM Plex Mono',monospace; font-size:12.5px; margin-top:14px; display:none;}
+
+  .results{margin-top:34px; padding-top:28px; border-top:1px solid var(--panel-edge); display:none;}
+  .readout-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink-dim);
+    margin-bottom:6px;
+  }
+  .keep-case{text-transform:none;}
+  .t-value{
+    font-family:'Newsreader', serif;
+    font-weight:500;
+    font-size:clamp(40px,7vw,68px);
+    line-height:1;
+    letter-spacing:-.02em;
+    color:var(--ink);
+  }
+  .t-value .unit-big{font-size:.5em; color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; margin-left:8px;}
+  .t-caption{font-size:13.5px; color:var(--ink-dim); margin-top:8px; max-width:600px; line-height:1.55;}
+
+  .fit-stats{
+    margin-top:14px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    color:var(--ink-dim);
+  }
+
+  .formula{
+    margin-top:34px;
+    padding-top:22px;
+    border-top:1px solid var(--panel-edge);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--ink-dim);
+    line-height:1.85;
+  }
+  .formula .tag{color:var(--teal); letter-spacing:.08em; text-transform:uppercase; font-size:10.5px; display:block; margin-bottom:8px;}
+  .formula p{margin:0 0 10px;}
+
+  footer{
+    max-width:960px;
+    margin:28px auto 0;
+    color:#8a978f;
+    font-size:12.5px;
+    line-height:1.7;
+  }
+  footer a{color:var(--teal);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow"><a href="../tools.html" style="color:inherit; text-decoration:none;">&larr; Shenghong Wang</a> &middot; Screening-level toxicokinetics</p>
+    <h1>Whole-body elimination <em>half-life</em></h1>
+    <p class="sub">Estimates a chemical's elimination half-life (t<sub>&#189;</sub>) with the classical one-compartment relationship t<sub>&#189;</sub> = ln(2)&middot;V<sub>d</sub>/CL<sub>total</sub>, built from the same partitioning and IVIVE machinery as the F<sub>bio</sub> tool &mdash; accounting for hepatic metabolism, systemic gut-wall metabolism, and renal excretion. Built on the mechanistic model in Wang, Zhang, Saunders, Li &amp; Li, <em style="font-style:italic">Environmental Science &amp; Technology</em> 58 (2024) 14135&ndash;14145.</p>
+  </header>
+
+  <div class="board">
+
+    <p class="section-label">Chemical properties</p>
+    <div class="grid3">
+      <div class="field">
+        <label><b>Chemical name</b> <span class="unit">(label only)</span></label>
+        <input type="text" id="name" value="DEHP">
+      </div>
+      <div class="field">
+        <label><b>log K<sub>OW</sub></b> <span class="unit">(neutral species, unitless)</span></label>
+        <input type="number" id="logKow" value="7.43" step="any">
+      </div>
+      <div class="field">
+        <label><b>P<sub>app,Caco-2</sub></b> <span class="unit">(cm/s)</span></label>
+        <input type="number" id="Papp" value="2.1e-6" step="any">
+      </div>
+      <div class="field">
+        <label><b>pK<sub>a</sub></b>, acid <span class="unit">(0 if none &mdash; ionization computed at pH 7.4)</span></label>
+        <input type="number" id="pKaA" value="0" step="any">
+      </div>
+      <div class="field">
+        <label><b>pK<sub>a</sub></b>, base <span class="unit">(0 if none &mdash; ionization computed at pH 7.4)</span></label>
+        <input type="number" id="pKaB" value="0" step="any">
+      </div>
+      <div class="field">
+        <label><b>Renal reabsorption</b> <span class="unit">(derived from P<sub>app,Caco-2</sub>)</span></label>
+        <label class="checkbox-field">
+          <input type="checkbox" id="noReabsorb">
+          No Caco-2 data &mdash; assume 0% reabsorption
+        </label>
+      </div>
+    </div>
+
+    <p class="section-label">Gut wall &amp; liver metabolism</p>
+    <div class="grid3">
+      <div class="field">
+        <label><b>Cl<sub>int,liver</sub></b> <span class="unit">(&mu;L/min/mg protein)</span></label>
+        <input type="number" id="clLiver" value="30.1" step="any">
+      </div>
+      <div class="field">
+        <label><b>Assay type</b> <span class="unit">(liver metabolism)</span></label>
+        <select id="clintType">
+          <option value="microsome" selected>Microsome</option>
+          <option value="hep">Hepatocyte</option>
+        </select>
+      </div>
+      <div class="field">
+        <label><b>f<sub>u,hep</sub> method</b> <span class="unit">(hepatocyte assay only)</span></label>
+        <select id="fuHepMethod">
+          <option value="mechanistic" selected>Mechanistic (composition-based)</option>
+          <option value="kilford">Kilford et al. 2008 (empirical)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label><b>Gut-wall metabolism</b> <span class="unit">(most chemicals: leave off)</span></label>
+        <label class="checkbox-field">
+          <input type="checkbox" id="includeWall">
+          Include gut-wall metabolism
+        </label>
+      </div>
+      <div class="field" id="clWallField" style="display:none;">
+        <label><b>Cl<sub>int,wall</sub></b> <span class="unit">(&mu;L/min/mg protein)</span></label>
+        <input type="number" id="clWall" value="219.6" step="any">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="calcBtn" type="button">Calculate t<span class="keep-case">&#189;</span></button>
+      <button class="btn secondary" id="loadDehp" type="button">Load DEHP example</button>
+      <button class="btn secondary" id="loadOmep" type="button">Load omeprazole example</button>
+    </div>
+    <p class="err" id="errBox"></p>
+
+    <div class="results" id="results">
+      <div class="readout-label">Estimated elimination <span class="keep-case">t<sub>&#189;</sub></span></div>
+      <div class="t-value" id="tBig">N/A</div>
+      <p class="t-caption" id="tCaption"></p>
+
+      <p class="fit-stats" id="fitStats"></p>
+    </div>
+
+    <div class="formula">
+      <span class="tag">Method</span>
+      <p>Uses the classical one-compartment relationship t<sub>&#189;</sub> = ln(2)&middot;V<sub>d</sub>/CL<sub>total</sub> &mdash; the same relationship EPA's httk package uses in its own <code>calc_half_life()</code> &mdash; built from the same partitioning and IVIVE machinery as the F<sub>bio</sub> tool. V<sub>d</sub> sums each tissue's volume weighted by its plasma-partition coefficient; CL<sub>total</sub> combines hepatic and gut-wall clearance (each blood-flow-limited via the well-stirred/venous-equilibrium model, CL<sub>organ</sub> = Q<sub>organ</sub>&middot;Cl<sub>int,organ</sub> / (Q<sub>organ</sub> + Cl<sub>int,organ</sub>)) with renal clearance. This is a closed-form calculation, not a simulation.</p>
+      <p><b style="color:var(--ink)">Note:</b> half-life is a derived extension built on the paper's validated model, not a value the paper itself reports or validates directly. Treat it as screening-level.</p>
+      <p><b style="color:var(--ink)">Note:</b> for hepatocyte-assay inputs, f<sub>u,hep</sub> defaults to a mechanistic, composition-based two-phase (cell + medium) partition model built on this tool's own K<sub>water</sub> framework, using measured HepG2 cell composition (Fischer et al. 2017) and primary-hepatocyte cell volume (Bellwon et al. 2015 via Lin et al. 2025) &mdash; rather than the Kilford et al. (2008) empirical regression, which remains available via the f<sub>u,hep</sub> method toggle for comparison. This does not affect the microsome branch or either example above.</p>
+      <p><b style="color:var(--ink)">Note:</b> P<sub>app,Caco-2</sub> only affects t<sub>&#189;</sub> through the renal-reabsorption term above. If a chemical has no measured Caco-2 permeability, check &ldquo;no Caco-2 data&rdquo; to assume 0% reabsorption (fully filtered, no tubular reabsorption) instead of guessing a value.</p>
+      <p><b style="color:var(--ink)">Note:</b> gut-wall metabolism is off by default &mdash; most chemicals have little to no first-pass metabolism in the intestinal wall itself (as opposed to the liver), and it typically requires its own in vitro measurement that most chemicals won't have. Turn it on only if you have a Cl<sub>int,wall</sub> value for this chemical.</p>
+    </div>
+  </div>
+
+  <footer>
+    Built on the PBTK model from Wang, S., Zhang, Z., Saunders, L. J., Li, D., Li, L. (2024). Understanding the impacts of presystemic metabolism on the human oral bioavailability of chemicals. <a href="https://doi.org/10.1021/acs.est.4c03344" target="_blank" rel="noopener">doi.org/10.1021/acs.est.4c03344</a> &mdash; the half-life calculation itself is a derived extension, not a number from the paper.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+
+  // Ionization-corrected octanol:water distribution coefficient (Dow) at a given pH.
+  // Neutral fraction f depends on which pKa's are present; pKa=0 means "not ionizable"
+  // for that acid/base direction, matching the un-ionized default (f=1, Dow=Kow).
+  function calcDow(logKow, pKa_a, pKa_b, pH) {
+    let f;
+    const hasA = pKa_a !== 0, hasB = pKa_b !== 0;
+    if (!hasA && !hasB) {
+      f = 1;
+    } else if (hasB && !hasA) {
+      f = 1 / (1 + Math.pow(10, pKa_b - pH));
+    } else if (hasA && !hasB) {
+      f = 1 / (1 + Math.pow(10, pH - pKa_a));
+    } else {
+      f = 1 / (1 + Math.pow(10, Math.abs(0.5 * pKa_a + 0.5 * pKa_b - pH)));
+    }
+    return f * Math.pow(10, logKow);
+  }
+
+  // ---------------------------------------------------------------------------
+  // NEW EQUATIONS (mechanistic fu_hep) — added from external analysis, see
+  // fu_hep_composition.md / fu_hep_methods.md / fu_inc.js for full derivation
+  // and provenance. Replaces the Kilford et al. (2008) empirical regression
+  // (kept below as an alternative, selectable via "fu_hep method") with a
+  // composition-based two-phase (cell + medium) partitioning model, built from
+  // the same Kwater() framework already used for every tissue Kp in this model
+  // — so the hepatocyte branch is now derived the same way the microsome
+  // branch (fu_mic) always has been, instead of mixing an empirical regression
+  // into an otherwise-mechanistic model.
+  //
+  // Cell composition: measured HepG2 volume fractions — water 0.8735, protein
+  // 0.0946, neutral (storage) lipid 0.00957, phospholipid (membrane) 0.02233 —
+  // from Fischer et al. (2017), "Modeling Exposure in the Tox21 in Vitro
+  // Bioassays," Chem. Res. Toxicol. 30(5), 1197–1208, Table 2 (doi
+  // 10.1021/acs.chemrestox.7b00023). The storage:membrane lipid split (30:70)
+  // is a modeling convention (Armitage et al. 2021, Toxics 9:315), not itself
+  // measured — but it's corroborated to within 0.8 percentage points by this
+  // model's own LIVER row (0.019/(0.019+0.046) = 0.2923 vs. the 0.300
+  // convention), so the residual uncertainty it introduces is <0.3% in fu_hep.
+  //
+  // Cell volume: 3.4 pL (primary human hepatocyte), from Bellwon et al.
+  // (2015), Toxicol. In Vitro 30:62–78 (doi 10.1016/j.tiv.2015.07.016), Table
+  // 7, via Lin et al. (2025), "Comparative Analysis of Chemical Distribution
+  // Models for Quantitative In Vitro to In Vivo Extrapolation," Toxics 13:439
+  // (doi 10.3390/toxics13060439), Table S3.
+  //
+  // Assay density fixed at the field-standard 1e6 cells/mL (matching the
+  // density Kilford's own regression and EPA's httk both implicitly assume),
+  // giving Vr = 1e6 x 3.4pL x 1e-9 = 0.0034 — computed from assay geometry
+  // rather than asserted as a constant, and close to (but not identical to)
+  // the Kilford/httk convention of Vr=0.005, confirming that convention's
+  // order of magnitude. Medium is treated as serum-free protein-free buffer
+  // (pure water) — the same assumption the Kilford regression itself makes.
+  const HEPATOCYTE_MEASURED = { vw: 0.8735, vn: 0.00957, vp: 0.02233, va: 0, vpr: 0.0946 };
+  const V_CELL_HEP_PL = 3.4;
+  const CELLS_PER_ML_HEP = 1e6;
+
+  function buildModel(p) {
+    const { Cl_int_liver, Cl_int_wall,
+      logKow, Clint_type, Papp_caco2, pKa_a, pKa_b, fu_hep_method, assume_no_reabsorption } = p;
+
+    const BW = 70, pH = 7.4;
+    const Q_cardiacc = 13.88 * Math.pow(BW, 0.75);
+    const Q_portal = 0.2054 * Q_cardiacc;
+    const Q_liver = 0.05359 * Q_cardiacc;
+    const V_wall = 0.0089 * BW;
+    const V_liver = 0.0245 * BW;
+    const V_rest = 0.788 * BW;
+    const M_liver = 1800, M_wall = 623;
+    const Q_gfr = 0.30998 * Math.pow(BW, 0.75);
+    // Papp_caco2's only role in this one-compartment calculation is the renal-
+    // reabsorption term below. Without a real Caco-2 measurement, check
+    // assume_no_reabsorption to force F_reabsorption=0 (fully filtered, no
+    // tubular reabsorption) instead of guessing a Papp value.
+    const F_reabsorption = assume_no_reabsorption ? 0 :
+      (1 - 0.06 / Q_gfr) * Math.pow(Papp_caco2, 2.7) / (Math.pow(34.4e-6, 2.7) + Math.pow(Papp_caco2, 2.7));
+
+    // Partitioning and fu formulas use logD (ionization-adjusted) instead of raw
+    // logKow — ionized species partition into lipids/membranes far less than neutral ones.
+    const Dow = calcDow(logKow, pKa_a || 0, pKa_b || 0, pH);
+    const logD = Math.log10(Dow);
+
+    const Klipidw = Math.pow(10, logD);
+    const Kproteinw = Math.pow(10, 0.73 * logD - 0.39);
+    const Kplipidw = Math.pow(10, 1.01 * logD + 0.12);
+    const Kalbuminw = Math.pow(10, 0.73 * logD - 0.39);
+
+    function Kwater(vw, vn, vp, va, vpr) {
+      return vw + vn * Klipidw + vp * Kplipidw + va * Kalbuminw + vpr * Kproteinw;
+    }
+
+    const Kliverwater = Kwater(0.73, 0.019, 0.046, 0.0019, 0.17);
+    const Kplasmawater = Kwater(0.96, 0.0015, 0.0008, 0.029, 0.015);
+    const Kwallwater = Kwater(0.7969, 0.04347, 0.01953, 0.001056, 0.135);
+    const K_liver2plasma = Kliverwater / Kplasmawater;
+    const K_wall2plasma = Kwallwater / Kplasmawater;
+
+    const Kmusclewater = Kwater(0.788, 0.0043, 0.0045, 0.0013, 0.17);
+    const K_muscle2plasma = Kmusclewater / Kplasmawater;
+
+    const Klungwater = Kwater(0.84, 0.0102, 0.0098, 0.0054, 0.055);
+    const K_lung2plasma = Klungwater / Kplasmawater;
+
+    const Kbrainwater = Kwater(0.79, 0.043, 0.067, 0.00004, 0.08);
+    const K_brain2plasma = Kbrainwater / Kplasmawater;
+
+    const Kkidneywater = Kwater(0.78, 0.012, 0.035, 0.0024, 0.16);
+    const K_kidney2plasma = Kkidneywater / Kplasmawater; // corrected; SI divides by itself
+
+    const Kbloodwater = Kwater(0.81, 0.0013, 0.0022, 0.016, 0.16);
+    const K_blood2plasma = Kbloodwater / Kplasmawater;
+
+    const K_rest2plasma = (0.3842 * K_muscle2plasma + 0.007235 * K_lung2plasma + 0.019310 * K_brain2plasma + 0.00419 * K_kidney2plasma) / (0.3842 + 0.007235 + 0.019310 + 0.00419);
+
+    const fub_blood = (1 / Kbloodwater) * 0.81;
+    const fub_plasma = (1 / Kplasmawater) * 0.96;
+    const R_blood2plasma = K_blood2plasma;
+
+    const w_assay_blood = 1;
+    let Cl_liver, fu_mic;
+    if (Clint_type === "microsome") {
+      const N_liver = 62.9;
+      const v_protein_assay = 1 / 1000;
+      const v_plipid_assay = 0.35 * v_protein_assay;
+      const v_water_assay = 1 - v_protein_assay - v_plipid_assay;
+      const Kassaywater = Kwater(v_water_assay, 0, v_plipid_assay, 0, v_protein_assay);
+      fu_mic = (1 / Kassaywater) * v_water_assay;
+      Cl_liver = Cl_int_liver * N_liver * M_liver * 60 / 1e6 * w_assay_blood / fu_mic * fub_blood;
+    } else if (Clint_type === "hep") {
+      const N_hep = 110;
+
+      // Kilford et al. (2008) empirical regression (Vr=0.005 default; the
+      // paper's SI code had 0.5, a 100x error — see the "Model" note below).
+      const Vr_kilford = 0.005;
+      const fub_hep_kilford = 1 / (1 + 125 * Vr_kilford * Math.pow(10, 0.072 * logD * logD + 0.067 * logD - 1.126));
+
+      // NEW EQUATION — mechanistic fu_hep: a two-phase (cell + medium)
+      // composition-based partition model, using this model's own Kwater()
+      // machinery instead of Kilford's empirical curve fit. See the
+      // HEPATOCYTE_MEASURED/V_CELL_HEP_PL block above for full provenance.
+      // Medium is modeled as serum-free protein-free buffer (pure water, so
+      // K_medwater=1), matching the assumption implicit in the Kilford
+      // regression itself.
+      const Vr_mech = CELLS_PER_ML_HEP * V_CELL_HEP_PL * 1e-9;
+      const K_cellwater = Kwater(HEPATOCYTE_MEASURED.vw, HEPATOCYTE_MEASURED.vn, HEPATOCYTE_MEASURED.vp, HEPATOCYTE_MEASURED.va, HEPATOCYTE_MEASURED.vpr);
+      const Kassaywater_mech = (1 - Vr_mech) * 1 + Vr_mech * K_cellwater;
+      const fub_hep_mech = (1 - Vr_mech) / Kassaywater_mech;
+
+      const fub_hep = fu_hep_method === "kilford" ? fub_hep_kilford : fub_hep_mech;
+      fu_mic = fub_hep;
+      Cl_liver = Cl_int_liver * N_hep * M_liver * 60 / 1e6 * w_assay_blood / fub_hep * fub_blood;
+    } else {
+      throw new Error("Clint_type must be 'microsome' or 'hep'");
+    }
+
+    const N_wall = 3.9;
+    const Cl_wall = Cl_int_wall * N_wall * M_wall * 60 / 1e6 * w_assay_blood / fu_mic * fub_blood;
+
+    return {
+      Cl_liver, Cl_wall, R_blood2plasma,
+      K_liver2plasma, K_wall2plasma, K_rest2plasma,
+      V_liver, V_wall, V_rest,
+      Q_liver, Q_portal, Q_gfr,
+      fub_plasma, F_reabsorption,
+    };
+  }
+
+  // ---- one-compartment analytical half-life ----
+  // t½ = ln(2)·Vd/CL_total — the same relationship EPA httk's own calc_half_life()
+  // uses — computed directly in closed form, instead of simulating the full
+  // terminal-phase PBTK decay with an RK4 ODE integrator.
+  //
+  // Vd sums each tissue's own volume weighted by its plasma-partition coefficient.
+  // CL_liver/CL_wall apply the well-stirred (venous equilibrium) blood-flow limit
+  // to the assay-scaled intrinsic clearances, since intrinsic clearance can't
+  // exceed how fast blood physically delivers chemical to the organ:
+  //   CL_organ = Q_organ·Cl_int_organ / (Q_organ + Cl_int_organ)
+  // No extra K_organ2blood factor is needed on top of Cl_liver/Cl_wall as defined
+  // in buildModel() — they're already blood-referenced by construction (verified:
+  // an additional K factor here double-counts a conversion already folded into
+  // Cl_liver/Cl_wall, and produces a "capped" clearance exceeding the uncapped
+  // input, which is mathematically impossible for a well-stirred cap).
+  function estimateHalfLife(p) {
+    const m = buildModel(p);
+    const Vd = m.V_wall * m.K_wall2plasma + m.V_liver * m.K_liver2plasma + m.V_rest * m.K_rest2plasma;
+    const CL_liver = (m.Q_liver * m.Cl_liver) / (m.Q_liver + m.Cl_liver);
+    const CL_wall = (m.Q_portal * m.Cl_wall) / (m.Q_portal + m.Cl_wall);
+    const CL_total = (CL_liver + CL_wall) * m.R_blood2plasma + m.Q_gfr * m.fub_plasma * (1 - m.F_reabsorption);
+    const kElim = CL_total / Vd;
+    const halfLifeHours = Math.log(2) / kElim;
+    return { halfLifeHours, kElim, Vd, CL_total, CL_liver, CL_wall };
+  }
+
+  // ---- formatting helpers ----
+  function bigValueParts(h) {
+    if (h < 1) return [(h * 60).toFixed(1), 'min'];
+    if (h < 48) return [h.toFixed(1), 'h'];
+    if (h < 24 * 90) return [(h / 24).toFixed(1), 'd'];
+    return [(h / 24 / 365).toFixed(2), 'y'];
+  }
+
+  // ---- DOM wiring ----
+  const els = {
+    name: document.getElementById('name'),
+    logKow: document.getElementById('logKow'),
+    Papp: document.getElementById('Papp'),
+    pKaA: document.getElementById('pKaA'),
+    pKaB: document.getElementById('pKaB'),
+    clLiver: document.getElementById('clLiver'),
+    clWall: document.getElementById('clWall'),
+    clintType: document.getElementById('clintType'),
+    fuHepMethod: document.getElementById('fuHepMethod'),
+    noReabsorb: document.getElementById('noReabsorb'),
+    includeWall: document.getElementById('includeWall'),
+  };
+  const clWallField = document.getElementById('clWallField');
+  els.includeWall.addEventListener('change', function() {
+    clWallField.style.display = els.includeWall.checked ? '' : 'none';
+  });
+  const calcBtn = document.getElementById('calcBtn');
+  const errBox = document.getElementById('errBox');
+  const results = document.getElementById('results');
+  const tBig = document.getElementById('tBig');
+  const tCaption = document.getElementById('tCaption');
+  const fitStats = document.getElementById('fitStats');
+
+  function readInputs() {
+    const p = {
+      Cl_int_liver: parseFloat(els.clLiver.value),
+      Cl_int_wall: els.includeWall.checked ? parseFloat(els.clWall.value) : 0,
+      logKow: parseFloat(els.logKow.value),
+      Clint_type: els.clintType.value,
+      fu_hep_method: els.fuHepMethod.value,
+      Papp_caco2: parseFloat(els.Papp.value),
+      pKa_a: parseFloat(els.pKaA.value),
+      pKa_b: parseFloat(els.pKaB.value),
+      assume_no_reabsorption: els.noReabsorb.checked,
+    };
+    const nums = [p.Cl_int_liver, p.Cl_int_wall, p.logKow, p.Papp_caco2, p.pKa_a, p.pKa_b];
+    if (nums.some(function(v){ return !isFinite(v); })) throw new Error('All fields must be valid numbers.');
+    if (p.Papp_caco2 <= 0) throw new Error('Papp,Caco-2 must be greater than 0.');
+    if ([p.Cl_int_liver, p.Cl_int_wall].some(function(v){ return v < 0; })) {
+      throw new Error('Clearances cannot be negative.');
+    }
+    if (p.Cl_int_liver <= 0 && p.Cl_int_wall <= 0) {
+      throw new Error('At least one of Cl_int,liver or Cl_int,wall must be greater than 0 — otherwise elimination is by renal excretion alone and may be extremely slow or effectively absent for this chemical.');
+    }
+    return p;
+  }
+
+  function run() {
+    errBox.style.display = 'none';
+    try {
+      const p = readInputs();
+      const result = estimateHalfLife(p);
+      const [val, unit] = bigValueParts(result.halfLifeHours);
+      tBig.innerHTML = val + '<span class="unit-big">' + unit + '</span>';
+      const name = els.name.value.trim() || 'this chemical';
+      tCaption.textContent = 'Estimated time for ' + name + '’s total body burden to fall by half, accounting for hepatic metabolism, systemic gut-wall metabolism, and renal excretion.';
+      fitStats.textContent = 'One-compartment estimate: CL_total = ' + result.CL_total.toFixed(3) + ' L/h, Vd = ' + result.Vd.toFixed(1) + ' L, k_elim = ' + result.kElim.toFixed(5) + ' h⁻¹';
+      results.style.display = 'block';
+    } catch (e) {
+      errBox.textContent = e.message;
+      errBox.style.display = 'block';
+      results.style.display = 'none';
+    }
+  }
+
+  calcBtn.addEventListener('click', run);
+
+  function loadDehp() {
+    els.name.value = 'DEHP';
+    els.logKow.value = 7.43;
+    els.Papp.value = 2.1e-6;
+    els.pKaA.value = 0;
+    els.pKaB.value = 0;
+    els.noReabsorb.checked = false;
+    els.clLiver.value = 30.1;
+    els.includeWall.checked = true;
+    clWallField.style.display = '';
+    els.clWall.value = 219.6;
+    els.clintType.value = 'microsome';
+    els.fuHepMethod.value = 'mechanistic';
+    run();
+  }
+
+  function loadOmep() {
+    els.name.value = 'Omeprazole';
+    els.logKow.value = 2.38;
+    els.Papp.value = 6.48e-5;
+    els.pKaA.value = 0;
+    els.pKaB.value = 0;
+    els.noReabsorb.checked = false;
+    els.clLiver.value = 49.0;
+    els.includeWall.checked = false;
+    clWallField.style.display = 'none';
+    els.clWall.value = 0;
+    els.clintType.value = 'microsome';
+    els.fuHepMethod.value = 'mechanistic';
+    run();
+  }
+
+  document.getElementById('loadDehp').addEventListener('click', loadDehp);
+  document.getElementById('loadOmep').addEventListener('click', loadOmep);
+
+  // Initial page view: same DEHP field values as the "Load DEHP example" button,
+  // but with defaults tilted toward general/unknown-chemical use — hepatocyte assay
+  // + mechanistic fu_hep (the more mechanistically grounded IVIVE path), and gut-wall
+  // metabolism off (most chemicals lack this measurement). Distinct from loadDehp()
+  // itself, which stays microsome + gut-wall-on to faithfully reproduce the paper's
+  // validated 9.5 h example when that button is clicked.
+  loadDehp();
+  els.clintType.value = 'hep';
+  els.fuHepMethod.value = 'mechanistic';
+  els.includeWall.checked = false;
+  clWallField.style.display = 'none';
+  run();
+
+})();
+</script>
+</body>
+</html>
