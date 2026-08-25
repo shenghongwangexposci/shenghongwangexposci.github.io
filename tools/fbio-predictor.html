@@ -283,6 +283,13 @@
           <option value="hep">Hepatocyte</option>
         </select>
       </div>
+      <div class="field">
+        <label><b>f<sub>u,hep</sub> method</b> <span class="unit">(hepatocyte assay only)</span></label>
+        <select id="fuHepMethod">
+          <option value="mechanistic" selected>Mechanistic (composition-based)</option>
+          <option value="kilford">Kilford et al. 2008 (empirical)</option>
+        </select>
+      </div>
     </div>
 
     <p class="section-label">Simulation</p>
@@ -325,6 +332,7 @@
     <div class="formula">
       <span class="tag">Model</span>
       <p>A 3-compartment PBTK model (gut lumen &times; 3 segments, gut wall, liver, rest-of-body) integrated over the simulated time window. Permeability-based absorption (IVIVE from P<sub>app,Caco-2</sub>) and clearance-based metabolism (IVIVE from in vitro intrinsic clearances) run concurrently as the dose transits the gut. Full derivation in the paper's SI, Text S1&ndash;S2.</p>
+      <p><b style="color:var(--ink)">Note:</b> for hepatocyte-assay inputs, f<sub>u,hep</sub> defaults to a mechanistic, composition-based two-phase (cell + medium) partition model built on this tool's own K<sub>water</sub> framework, using measured HepG2 cell composition (Fischer et al. 2017) and primary-hepatocyte cell volume (Bellwon et al. 2015 via Lin et al. 2025) &mdash; rather than the Kilford et al. (2008) empirical regression, which remains available via the f<sub>u,hep</sub> method toggle for comparison. This does not affect the microsome branch or either example above.</p>
     </div>
 
     <p class="section-label">Model framework</p>
@@ -343,9 +351,48 @@
 <script>
 (function(){
 
+  // ---------------------------------------------------------------------------
+  // NEW EQUATIONS (mechanistic fu_hep) — added from external analysis, see
+  // fu_hep_composition.md / fu_hep_methods.md / fu_inc.js for full derivation
+  // and provenance. Replaces the Kilford et al. (2008) empirical regression
+  // (kept below as an alternative, selectable via "fu_hep method") with a
+  // composition-based two-phase (cell + medium) partitioning model, built from
+  // the same Kwater() framework already used for every tissue Kp in this model
+  // — so the hepatocyte branch is now derived the same way the microsome
+  // branch (fu_mic) always has been, instead of mixing an empirical regression
+  // into an otherwise-mechanistic model.
+  //
+  // Cell composition: measured HepG2 volume fractions — water 0.8735, protein
+  // 0.0946, neutral (storage) lipid 0.00957, phospholipid (membrane) 0.02233 —
+  // from Fischer et al. (2017), "Modeling Exposure in the Tox21 in Vitro
+  // Bioassays," Chem. Res. Toxicol. 30(5), 1197–1208, Table 2 (doi
+  // 10.1021/acs.chemrestox.7b00023). The storage:membrane lipid split (30:70)
+  // is a modeling convention (Armitage et al. 2021, Toxics 9:315), not itself
+  // measured — but it's corroborated to within 0.8 percentage points by this
+  // model's own LIVER row (0.019/(0.019+0.046) = 0.2923 vs. the 0.300
+  // convention), so the residual uncertainty it introduces is <0.3% in fu_hep.
+  //
+  // Cell volume: 3.4 pL (primary human hepatocyte), from Bellwon et al.
+  // (2015), Toxicol. In Vitro 30:62–78 (doi 10.1016/j.tiv.2015.07.016), Table
+  // 7, via Lin et al. (2025), "Comparative Analysis of Chemical Distribution
+  // Models for Quantitative In Vitro to In Vivo Extrapolation," Toxics 13:439
+  // (doi 10.3390/toxics13060439), Table S3.
+  //
+  // Assay density fixed at the field-standard 1e6 cells/mL (matching the
+  // density Kilford's own regression and EPA's httk both implicitly assume),
+  // giving Vr = 1e6 x 3.4pL x 1e-9 = 0.0034 — computed from assay geometry
+  // rather than asserted as a constant. Medium is treated as serum-free
+  // protein-free buffer (pure water) — the same assumption the Kilford
+  // regression itself makes. This model has no pKa/ionization correction
+  // (see the half-life tool for that), so this uses raw logKow, consistent
+  // with the rest of this file's partitioning calculations.
+  const HEPATOCYTE_MEASURED = { vw: 0.8735, vn: 0.00957, vp: 0.02233, va: 0, vpr: 0.0946 };
+  const V_CELL_HEP_PL = 3.4;
+  const CELLS_PER_ML_HEP = 1e6;
+
   function computeFbio(p) {
     const { Cl_int_lumen1, Cl_int_lumen2, Cl_int_lumen3, Cl_int_liver, Cl_int_wall,
-      logKow, Clint_type, Papp_caco2, time, N_lumen } = p;
+      logKow, Clint_type, Papp_caco2, time, N_lumen, fu_hep_method } = p;
 
     const BW = 70, R = 1.75;
     const k_transit = 1 / 4 * 3;
@@ -415,8 +462,26 @@
       fu_mic = (1 / Kassaywater) * v_water_assay;
       Cl_liver = Cl_int_liver * N_liver * M_liver * 60 / 1e6 * w_assay_blood / fu_mic * fub_blood;
     } else if (Clint_type === "hep") {
-      const N_hep = 110, Vr = 0.5;
-      const fub_hep = 1 / (1 + 125 * Vr * Math.pow(10, 0.072 * logKow * logKow + 0.067 * logKow - 1.126));
+      const N_hep = 110;
+
+      // Kilford et al. (2008) empirical regression (Vr=0.005 default; this
+      // file previously had 0.5, a 100x error — see the "Model" note below).
+      const Vr_kilford = 0.005;
+      const fub_hep_kilford = 1 / (1 + 125 * Vr_kilford * Math.pow(10, 0.072 * logKow * logKow + 0.067 * logKow - 1.126));
+
+      // NEW EQUATION — mechanistic fu_hep: a two-phase (cell + medium)
+      // composition-based partition model, using this model's own Kwater()
+      // machinery instead of Kilford's empirical curve fit. See the
+      // HEPATOCYTE_MEASURED/V_CELL_HEP_PL block above for full provenance.
+      // Medium is modeled as serum-free protein-free buffer (pure water, so
+      // K_medwater=1), matching the assumption implicit in the Kilford
+      // regression itself.
+      const Vr_mech = CELLS_PER_ML_HEP * V_CELL_HEP_PL * 1e-9;
+      const K_cellwater = Kwater(HEPATOCYTE_MEASURED.vw, HEPATOCYTE_MEASURED.vn, HEPATOCYTE_MEASURED.vp, HEPATOCYTE_MEASURED.va, HEPATOCYTE_MEASURED.vpr);
+      const Kassaywater_mech = (1 - Vr_mech) * 1 + Vr_mech * K_cellwater;
+      const fub_hep_mech = (1 - Vr_mech) / Kassaywater_mech;
+
+      const fub_hep = fu_hep_method === "kilford" ? fub_hep_kilford : fub_hep_mech;
       fu_mic = fub_hep;
       Cl_liver = Cl_int_liver * N_hep * M_liver * 60 / 1e6 * w_assay_blood / fub_hep * fub_blood;
     } else {
@@ -501,6 +566,7 @@
     clLiver: document.getElementById('clLiver'),
     clWall: document.getElementById('clWall'),
     clintType: document.getElementById('clintType'),
+    fuHepMethod: document.getElementById('fuHepMethod'),
     time: document.getElementById('time'),
     nLumen: document.getElementById('nLumen'),
   };
@@ -581,6 +647,7 @@
       Cl_int_wall: parseFloat(els.clWall.value),
       logKow: parseFloat(els.logKow.value),
       Clint_type: els.clintType.value,
+      fu_hep_method: els.fuHepMethod.value,
       Papp_caco2: parseFloat(els.Papp.value),
       time: parseFloat(els.time.value),
       N_lumen: parseFloat(els.nLumen.value),
@@ -625,6 +692,7 @@
     els.clLiver.value = 30.1;
     els.clWall.value = 219.6;
     els.clintType.value = 'microsome';
+    els.fuHepMethod.value = 'mechanistic';
     els.time.value = 24;
     els.nLumen.value = 3;
     run();
@@ -640,6 +708,7 @@
     els.clLiver.value = 49.0;
     els.clWall.value = 0;
     els.clintType.value = 'microsome';
+    els.fuHepMethod.value = 'mechanistic';
     els.time.value = 24;
     els.nLumen.value = 1;
     run();
