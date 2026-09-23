@@ -269,7 +269,7 @@
     <p class="section-label">Gut wall &amp; liver metabolism</p>
     <div class="grid3">
       <div class="field">
-        <label><b>Cl<sub>int,liver</sub></b> <span class="unit">(&mu;L/min/mg protein)</span></label>
+        <label><b>Cl<sub>int,liver</sub></b> <span class="unit" id="clLiverUnit">(&mu;L/min/mg protein)</span></label>
         <input type="number" id="clLiver" value="30.1" step="any">
       </div>
       <div class="field">
@@ -570,6 +570,13 @@
     time: document.getElementById('time'),
     nLumen: document.getElementById('nLumen'),
   };
+  const clLiverUnit = document.getElementById('clLiverUnit');
+  function updateLiverUnit() {
+    clLiverUnit.innerHTML = els.clintType.value === 'hep'
+      ? '(&mu;L/min/10<sup>6</sup> hepatocytes)'
+      : '(&mu;L/min/mg protein)';
+  }
+  els.clintType.addEventListener('change', updateLiverUnit);
   const calcBtn = document.getElementById('calcBtn');
   const errBox = document.getElementById('errBox');
   const results = document.getElementById('results');
@@ -693,6 +700,7 @@
     els.clWall.value = 219.6;
     els.clintType.value = 'microsome';
     els.fuHepMethod.value = 'mechanistic';
+    updateLiverUnit();
     els.time.value = 24;
     els.nLumen.value = 3;
     run();
@@ -709,6 +717,7 @@
     els.clWall.value = 0;
     els.clintType.value = 'microsome';
     els.fuHepMethod.value = 'mechanistic';
+    updateLiverUnit();
     els.time.value = 24;
     els.nLumen.value = 1;
     run();
