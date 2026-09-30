@@ -548,6 +548,7 @@
     font-family:'IBM Plex Mono', monospace;
   }
 </style>
+<script data-goatcounter="https://shenghong.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -934,6 +935,18 @@ Digoxin, 794, 1.1e-6"></textarea>
     labelPart.innerHTML = 'partitioning-limited' + (highLog !== null ? ' (K<sub>OW</sub> &gt; ' + fmtSci(Math.pow(10, highLog)) + ')' : '');
   }
 
+  function trackEvent(path) {
+    if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: path, event: true });
+  }
+  // Single mode recalculates live on every slider tick, so count it once per visit.
+  let singleUseTracked = false;
+  function trackSingleUse() {
+    if (singleUseTracked) return;
+    singleUseTracked = true;
+    trackEvent('fabs-single-used');
+  }
+  [kowSlider, papSlider, kowNum, papNum].forEach(el => el.addEventListener('change', trackSingleUse));
+
   kowSlider.addEventListener('input', () => {
     updateFromLogs(parseFloat(kowSlider.value), parseFloat(papSlider.value));
   });
@@ -1256,7 +1269,7 @@ Digoxin, 794, 1.1e-6"></textarea>
     URL.revokeObjectURL(url);
   }
 
-  batchRun.addEventListener('click', runBatch);
+  batchRun.addEventListener('click', () => { trackEvent('fabs-batch-run'); runBatch(); });
   batchClear.addEventListener('click', () => {
     batchInput.value = '';
     batchBody.innerHTML = '';

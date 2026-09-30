@@ -201,6 +201,7 @@
   }
   footer a{color:var(--teal);}
 </style>
+<script data-goatcounter="https://shenghong.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -585,7 +586,10 @@
     }
   }
 
-  calcBtn.addEventListener('click', run);
+  function trackEvent(path) {
+    if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: path, event: true });
+  }
+  calcBtn.addEventListener('click', function () { trackEvent('halflife-calculate'); run(); });
 
   function loadDehp() {
     els.name.value = 'DEHP';
