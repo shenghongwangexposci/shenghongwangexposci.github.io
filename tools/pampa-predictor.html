@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAMPA Mass Balance: In Vitro Permeability Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#f7f4ec;
+    --bg-1:#efe9d9;
+    --panel:#fffdf8;
+    --panel-edge:#e2dcc7;
+    --ink:#26332e;
+    --ink-dim:#6b7a73;
+    --muted:#8a978f;
+    --amber:#b5772f;
+    --teal:#2f7d68;
+    --red:#a83f36;
+    --grid:#e8e2d1;
+    --series-donor:#2a78d6;
+    --series-membrane:#eb6834;
+    --series-acceptor:#1baf7a;
+    --series-air:#eda100;
+    --series-plastic:#e87ba4;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, #eef2ec 0%, transparent 55%),
+      radial-gradient(ellipse at 100% 110%, #f3ecdd 0%, transparent 50%),
+      var(--bg-0);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    padding:48px 20px 72px;
+  }
+  .wrap{max-width:960px;margin:0 auto;}
+
+  header{margin-bottom:36px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--teal);
+    margin:0 0 10px;
+  }
+  h1{
+    font-family:'Newsreader', serif;
+    font-weight:500;
+    font-size:clamp(32px,5vw,48px);
+    line-height:1.05;
+    margin:0 0 14px;
+    letter-spacing:-.01em;
+  }
+  h1 em{font-style:italic;color:var(--amber);}
+  .sub{
+    color:var(--ink-dim);
+    font-size:15.5px;
+    line-height:1.6;
+    max-width:680px;
+    margin:0;
+  }
+
+  .board{
+    background:linear-gradient(180deg,var(--panel),#faf6ec);
+    border:1px solid var(--panel-edge);
+    border-radius:14px;
+    padding:36px;
+    box-shadow:0 24px 48px -30px rgba(38,51,46,.14), inset 0 1px 0 rgba(255,255,255,.7);
+    position:relative;
+    overflow:hidden;
+  }
+  .board::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:28px 28px;
+    opacity:.6;
+    pointer-events:none;
+  }
+  .board > *{position:relative;}
+  @media (max-width:520px){ .board{padding:22px 16px;} }
+
+  .section-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--teal);
+    margin:0 0 14px;
+  }
+  .section-label:not(:first-child){margin-top:30px;}
+
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:18px 22px;}
+  @media (max-width:720px){ .grid3{grid-template-columns:1fr 1fr;} }
+  @media (max-width:520px){ .grid3{grid-template-columns:1fr;} }
+
+  .field label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.03em;
+    color:var(--ink-dim);
+    margin-bottom:7px;
+  }
+  .field label b{color:var(--ink); font-weight:500;}
+  input[type=number], input[type=text], select{
+    width:100%;
+    background:var(--bg-1);
+    border:1px solid var(--panel-edge);
+    border-radius:7px;
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13.5px;
+    padding:9px 10px;
+  }
+  input:focus, select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+  .unit{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-dim);}
+  .hint{font-size:13px; line-height:1.55; color:var(--ink-dim); max-width:680px; margin:14px 0 0;}
+
+  .actions{
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    margin-top:28px; padding-top:22px; border-top:1px solid var(--panel-edge);
+  }
+  .actions .examples-label{font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-dim); margin-left:6px;}
+  .btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:.03em;
+    border-radius:8px;
+    padding:10px 18px;
+    cursor:pointer;
+    border:1px solid var(--panel-edge);
+    background:var(--teal);
+    color:var(--bg-0);
+    font-weight:600;
+  }
+  .btn.secondary{background:var(--bg-1); color:var(--ink); padding:10px 14px;}
+  .btn:hover{filter:brightness(1.07);}
+  .err{color:var(--red); font-family:'IBM Plex Mono',monospace; font-size:12.5px; margin-top:14px; display:none;}
+
+  .results{margin-top:34px; padding-top:28px; border-top:1px solid var(--panel-edge); display:none;}
+  .readout-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink-dim);
+    margin-bottom:6px;
+  }
+  .keep-case{text-transform:none;}
+  .pe-value{
+    font-family:'Newsreader', serif;
+    font-weight:500;
+    font-size:clamp(36px,6vw,58px);
+    line-height:1.05;
+    letter-spacing:-.01em;
+    color:var(--ink);
+  }
+  .pe-value.na{font-size:clamp(24px,4vw,34px); color:var(--ink-dim);}
+  .pe-value .unit-big{font-size:.45em; color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; margin-left:8px;}
+  .pe-caption{font-size:13.5px; color:var(--ink-dim); margin-top:8px; max-width:640px; line-height:1.55;}
+  .notice{
+    margin-top:14px; max-width:680px;
+    font-size:13px; line-height:1.55; color:var(--ink);
+    background:#f7ecd9; border:1px solid #e8d3ae; border-radius:8px; padding:10px 12px;
+    display:none;
+  }
+
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:24px;}
+  @media (max-width:640px){ .stats{grid-template-columns:1fr;} }
+  .stat{background:var(--bg-1); border:1px solid var(--panel-edge); border-radius:10px; padding:12px 14px;}
+  .stat .n{font-family:'Newsreader',serif; font-size:24px; font-weight:500;}
+  .stat .l{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-dim); margin-top:2px; line-height:1.45;}
+
+  .split{display:grid; grid-template-columns:260px 1fr; gap:26px; margin-top:30px; align-items:start;}
+  @media (max-width:760px){ .split{grid-template-columns:1fr;} }
+  .subhead{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-dim); margin:0 0 10px;}
+
+  table.mass{width:100%; border-collapse:collapse; font-family:'IBM Plex Mono',monospace; font-size:12.5px;}
+  table.mass td{padding:7px 4px; border-bottom:1px solid var(--grid); font-variant-numeric:tabular-nums;}
+  table.mass td.v{text-align:right; color:var(--ink);}
+  table.mass tr:last-child td{border-bottom:none; color:var(--ink-dim);}
+  .sw{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:8px; vertical-align:-1px;}
+
+  .chart-shell{position:relative;}
+  svg.chart{display:block; width:100%; height:auto;}
+  .tick{font-family:'IBM Plex Mono',monospace; font-size:10.5px; fill:var(--muted);}
+  .axis-title{font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.05em; fill:var(--ink-dim);}
+  .tip{
+    position:absolute; pointer-events:none; z-index:3;
+    background:var(--ink); color:var(--bg-0);
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; line-height:1.6;
+    padding:8px 10px; border-radius:7px; white-space:nowrap;
+    box-shadow:0 10px 24px -8px rgba(0,0,0,.35);
+    opacity:0; transition:opacity .08s ease;
+  }
+  .tip.show{opacity:1;}
+  .tip .sw{width:8px; height:8px; margin-right:6px;}
+
+  .formula{
+    margin-top:34px;
+    padding-top:22px;
+    border-top:1px solid var(--panel-edge);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--ink-dim);
+    line-height:1.85;
+  }
+  .formula .tag{color:var(--teal); letter-spacing:.08em; text-transform:uppercase; font-size:10.5px; display:block; margin-bottom:8px;}
+  .formula p{margin:0 0 10px;}
+
+  footer{
+    max-width:960px;
+    margin:28px auto 0;
+    color:#8a978f;
+    font-size:12.5px;
+    line-height:1.7;
+  }
+  footer a{color:var(--teal);}
+</style>
+<script data-goatcounter="https://shenghong.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow"><a href="../tools.html" style="color:inherit; text-decoration:none;">&larr; Shenghong Wang</a> &middot; In vitro mass balance</p>
+    <h1>PAMPA mass <em>balance</em></h1>
+    <p class="sub">Simulates where a chemical goes during a parallel artificial membrane permeability assay (PAMPA) &mdash; donor well, lecithin/dodecane membrane, acceptor well, headspace, and the plastic plate &mdash; and the effective permeability (P<sub>e</sub>) the assay would report. Based on the mechanistic mass balance model in Wang, Zhang, Li, Illa &amp; Li, <em style="font-style:italic">Environment International</em> 170 (2022) 107589.</p>
+  </header>
+
+  <div class="board">
+
+    <p class="section-label">Chemical properties</p>
+    <div class="grid3">
+      <div class="field">
+        <label><b>Chemical name</b> <span class="unit">(label only)</span></label>
+        <input type="text" id="name" value="DDT">
+      </div>
+      <div class="field">
+        <label><b>Molar mass</b> <span class="unit">(g/mol)</span></label>
+        <input type="number" id="MW" value="354.49" step="any">
+      </div>
+      <div class="field">
+        <label><b>McGowan volume, V</b> <span class="unit">((cm&sup3;/mol)/100)</span></label>
+        <input type="number" id="V" value="2.218" step="any">
+      </div>
+      <div class="field">
+        <label><b>log K<sub>OW</sub></b> <span class="unit">(neutral species)</span></label>
+        <input type="number" id="logKow" value="6.4" step="any">
+      </div>
+      <div class="field">
+        <label><b>log K<sub>OA</sub></b> <span class="unit">(neutral species)</span></label>
+        <input type="number" id="logKoa" value="9.87" step="any">
+      </div>
+      <div class="field">
+        <label><b>pK<sub>a</sub></b>, acid <span class="unit">(0 if none)</span></label>
+        <input type="number" id="pKaA" value="0" step="any">
+      </div>
+      <div class="field">
+        <label><b>pK<sub>a</sub></b>, base <span class="unit">(0 if none)</span></label>
+        <input type="number" id="pKaB" value="0" step="any">
+      </div>
+    </div>
+
+    <p class="section-label">Assay conditions</p>
+    <div class="grid3">
+      <div class="field">
+        <label><b>pH</b> <span class="unit">(donor &amp; acceptor)</span></label>
+        <input type="number" id="pH" value="7.4" step="any">
+      </div>
+      <div class="field">
+        <label><b>Incubation time</b> <span class="unit">(h)</span></label>
+        <input type="number" id="tHours" value="10.5" step="any">
+      </div>
+      <div class="field">
+        <label><b>Unstirred water layer</b> <span class="unit">(UWL)</span></label>
+        <select id="uwlMode">
+          <option value="thickness" selected>Enter thickness</option>
+          <option value="stirring">Enter stirring speed</option>
+        </select>
+      </div>
+      <div class="field" id="deltaWField">
+        <label><b>UWL thickness, &delta;<sub>W</sub></b> <span class="unit">(cm)</span></label>
+        <input type="number" id="deltaW" value="0.2" step="any">
+      </div>
+      <div class="field" id="rpmField" style="display:none;">
+        <label><b>Stirring speed</b> <span class="unit">(rpm; 0 = unstirred)</span></label>
+        <input type="number" id="rpm" value="100" step="any">
+      </div>
+    </div>
+    <p class="hint">The UWL thickness is set by stirring: about 0.2 cm in an unstirred plate, falling to roughly 25&ndash;100 &micro;m with individual-well stirring at 100&ndash;600 rpm. Thinner layers raise P<sub>e</sub>, most strongly for hydrophobic chemicals.</p>
+
+    <div class="actions">
+      <button class="btn" id="calcBtn" type="button">Calculate</button>
+      <span class="examples-label">Examples:</span>
+      <button class="btn secondary" type="button" data-example="piroxicam">Piroxicam</button>
+      <button class="btn secondary" type="button" data-example="propranolol">Propranolol</button>
+      <button class="btn secondary" type="button" data-example="tcipp">TCiPP</button>
+      <button class="btn secondary" type="button" data-example="ddt">DDT</button>
+    </div>
+    <p class="err" id="errBox"></p>
+
+    <div class="results" id="results">
+      <div class="readout-label">Effective permeability, <span class="keep-case">P<sub>e</sub></span></div>
+      <div class="pe-value" id="peBig">N/A</div>
+      <p class="pe-caption" id="peCaption"></p>
+      <p class="notice" id="notice"></p>
+
+      <div class="stats">
+        <div class="stat"><div class="n" id="statRe">&ndash;</div><div class="l">Membrane retention (% of dose)</div></div>
+        <div class="stat"><div class="n" id="statRatio">&ndash;</div><div class="l">Acceptor / donor concentration</div></div>
+        <div class="stat"><div class="n" id="statF">&ndash;</div><div class="l">Neutral fraction at this pH</div></div>
+      </div>
+
+      <div class="split">
+        <div>
+          <p class="subhead" id="tableHead">Mass at end of incubation</p>
+          <table class="mass" id="massTable"></table>
+        </div>
+        <div>
+          <p class="subhead">Mass over the incubation (% of dose)</p>
+          <div class="chart-shell" id="chartShell">
+            <svg class="chart" id="chart" viewBox="0 0 620 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Percent of dose in each compartment over the incubation time"></svg>
+            <div class="tip" id="tip"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="formula">
+      <span class="tag">Method</span>
+      <p>Five compartments &mdash; donor, membrane, acceptor, headspace, and the plastic wall &mdash; exchange the chemical by diffusion across stagnant boundary layers (Fick&rsquo;s first law), giving a linear system of five differential equations that is solved exactly. The membrane is treated as a single boundary layer split into two halves facing the donor and acceptor. Effective permeability is then computed from the modeled donor and acceptor concentrations exactly as a laboratory PAMPA would (Eq. 1 of the paper, V<sub>D</sub> = V<sub>A</sub>):<br>P<sub>e</sub> = &minus;2.303&middot;V<sub>A</sub>V<sub>D</sub> / [(V<sub>A</sub>+V<sub>D</sub>)&middot;A&middot;(t &minus; &tau;<sub>SS</sub>)] &middot; log<sub>10</sub>[(C<sub>D</sub> &minus; C<sub>A</sub>)/(C<sub>D</sub> + C<sub>A</sub>)].</p>
+      <p>Partitioning: membrane&ndash;water K = (0.05&middot;D<sub>OW</sub>)<sup>0.6</sup>; plastic&ndash;water K<sub>PW</sub> = 0.06&middot;K<sub>OW</sub>; air&ndash;water D<sub>AW</sub> = f<sub>n</sub>&middot;K<sub>AW</sub>, with K<sub>AW</sub> = K<sub>OW</sub>/K<sub>OA</sub> and f<sub>n</sub> the neutral fraction at the assay pH. Diffusivities in water, the membrane, plastic and air are estimated from molar mass and McGowan volume. Fixed plate geometry: V<sub>D</sub> = V<sub>A</sub> = 0.2 mL, membrane area 0.3 cm&sup2;, membrane thickness 125 &micro;m.</p>
+      <p><b style="color:var(--ink)">Note:</b> Eq. 1 assumes steady-state transport and requires the donor and acceptor not to have equilibrated. For hydrophobic chemicals the time to steady state can exceed the incubation time, and with thin unstirred water layers or long incubations the two wells can equilibrate &mdash; then P<sub>e</sub> cannot be calculated. The lag time &tau;<sub>SS</sub> is fixed at 19 min, the generic value used in the published model; it suits hydrophilic chemicals but underestimates the lag for hydrophobic ones (paper &sect;3.3.3).</p>
+      <p><b style="color:var(--ink)">Note:</b> the unstirred water layer (UWL) thickness is controlled by stirring. A thicker layer lowers P<sub>e</sub>, most strongly for hydrophobic chemicals, whose measured P<sub>e</sub> may mostly reflect the UWL rather than the membrane itself.</p>
+      <p><b style="color:var(--ink)">Stirring speed option:</b> not part of the original model. Stirring speed f (rpm) is converted to UWL thickness with the power law fitted to individual-well-stirred PAMPA data by Avdeef et al. (2004, <i>Eur. J. Pharm. Sci.</i> 22, 365&ndash;374), as reported in Avdeef (2022, <i>ADMET &amp; DMPK</i> 10(4)): P<sub>UWL</sub> = 23.1&times;10<sup>&minus;6</sup>&middot;f<sup>0.709</sup> cm/s and &delta;<sub>W</sub> = D<sub>W</sub>/P<sub>UWL</sub>, where D<sub>W</sub> is the chemical&rsquo;s water diffusivity estimated by the model, capped at 0.2 cm (unstirred). The resulting thickness is applied to each side of the membrane, as the model does for an entered thickness. The fit was made over roughly 50&ndash;600 rpm with magnetic stirring; treat values outside that range, or for orbital shakers, as rough.</p>
+      <p><b style="color:var(--ink)">Example inputs:</b> log K<sub>OW</sub> and pK<sub>a</sub> as given for the case-study chemicals in Fig. 5 of the paper; molar mass and McGowan volume calculated from molecular formulas; K<sub>OA</sub> derived from Henry&rsquo;s law constants in EPA&rsquo;s httk database (OPERA predictions). Treat results as screening-level.</p>
+    </div>
+  </div>
+
+  <footer>
+    Based on Wang, S., Zhang, Z., Li, D., Illa, S. E., Li, L. (2022). In silico model-based exploration of the applicability of parallel artificial membrane permeability assay (PAMPA) to screen chemicals of environmental concern. <i>Environment International</i>, 170, 107589. <a href="https://doi.org/10.1016/j.envint.2022.107589" target="_blank" rel="noopener">doi.org/10.1016/j.envint.2022.107589</a>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+
+  // Fraction of the chemical in neutral form. pKa = 0 means "no ionizable group"
+  // in that direction (same convention as the published code's ionization flag).
+  function neutralFraction(pKa_a, pKa_b, pH) {
+    const hasA = pKa_a !== 0, hasB = pKa_b !== 0;
+    if (!hasA && !hasB) return 1;
+    if (hasB && !hasA) return 1 / (1 + Math.pow(10, pKa_b - pH));
+    if (hasA && !hasB) return 1 / (1 + Math.pow(10, pH - pKa_a));
+    return 1 / (1 + Math.pow(10, Math.abs(0.5 * pKa_a + 0.5 * pKa_b - pH)));
+  }
+
+  const PAMPA_GEOMETRY = {
+    Vd: 0.2, Va: 0.2,            // donor / acceptor volume, mL
+    Area: 0.3,                   // membrane area, cm2
+    Lm: 0.0125,                  // membrane thickness, cm
+    C0: 10000,                   // initial donor concentration (arbitrary units)
+    deltaP: 0.01,                // plastic boundary layer, cm
+    deltaA: 0.0002,              // headspace boundary layer, cm
+    areaDonorPlastic: 1.6,       // cm2
+    areaAcceptorPlastic: 1.3,    // cm2
+    areaAir: 0.003,              // cm2
+    T: 298,                      // K
+    eta: 7.59,                   // membrane viscosity term
+  };
+
+  // Rate matrix for x = [Cd, Cm, Ca, Cair, Cp], a line-for-line port of
+  // PAMPA_Main.py (Wang et al. 2022, Environ. Int. 170, 107589).
+  function buildPampaModel(p) {
+    const g = PAMPA_GEOMETRY;
+    const f = neutralFraction(p.pKa_a, p.pKa_b, p.pH);
+
+    const K = Math.pow(0.05 * f * Math.pow(10, p.logKow), 0.6);
+
+    const T = g.T;
+    const Dw = Math.pow(10, -4.13 - 0.453 * Math.log10(p.MW));
+    const Dm = (13.3e-8 * Math.pow(T, 1.47) * Math.pow(g.eta, (10.2 / (p.V * 100)) - 0.791)) / Math.pow(100 * p.V, 0.71);
+
+    const Ld = g.Vd / g.Area, La = g.Va / g.Area, Lm = g.Lm;
+    const deltaW = p.deltaW;
+    const deltaM = (Lm * 0.99) / 2;
+    const W = Dw * deltaM;
+    const M = Dm * deltaW;
+
+    const Kpw = 0.06 * Math.pow(10, p.logKow);
+    const Kaw = Math.pow(10, p.logKow - p.logKoa);
+    const Daw = f * Kaw;
+
+    const Dp = Math.pow(10, (-2391 - 3486) / T + 6.39 - 2.49 * Math.log10(p.MW) + 4.79);
+    const Da = 0.001 * Math.pow(T, 1.75) * Math.sqrt((p.MW + 28.97) / (28.97 * p.MW)) / Math.pow(p.V * 100 + 20.1, 2);
+
+    const kw = Dw / deltaW;
+    const kp = Dp / g.deltaP;
+    const ka = Da / g.deltaA;
+    const flux_dp_cd = g.areaDonorPlastic / g.Vd * kw * (kw / (kw + Kpw * kp) - 1);
+    const flux_dp_cp = g.areaDonorPlastic / g.Vd * kw * (kp / (kw + Kpw * kp));
+    const flux_ap_ca = g.areaAcceptorPlastic / g.Vd * kw * (kw / (kw + Kpw * kp) - 1);
+    const flux_ap_cp = g.areaAcceptorPlastic / g.Vd * kw * (kp / (kw + Kpw * kp));
+    const flux_aair_ca = g.areaAir / g.Vd * kw * (kw / (kw + Daw * ka) - 1);
+    const flux_aair_cair = g.areaAir / g.Vd * kw * (ka / (kw + Daw * ka));
+
+    const wm = W / (W + M * K);
+    const mk = M / (W + K * M);
+    const B = [
+      [(Dw / (Ld * deltaW)) * (wm - 1) + flux_dp_cd, (Dw / (Ld * deltaW)) * mk, 0, 0, flux_dp_cp],
+      [(Dw / (Lm * deltaW)) * (1 - wm), (-Dw / (Lm * deltaW)) * (2 * mk), (Dw / (Lm * deltaW)) * (1 - wm), 0, 0],
+      [0, (Dw / (La * deltaW)) * mk, (Dw / (La * deltaW)) * (wm - 1) + flux_ap_ca + flux_aair_ca, flux_aair_cair, flux_ap_cp],
+      [0, 0, -flux_aair_ca, -flux_aair_cair, 0],
+      [-flux_dp_cd, 0, -flux_ap_ca, 0, -flux_ap_cp - flux_dp_cp],
+    ];
+
+    return { B, f, K, Kpw, Daw, Dw, Dm, Dp, Da, Ld, La, Lm };
+  }
+
+  function matMul(A, B) {
+    const n = A.length, C = [];
+    for (let i = 0; i < n; i++) {
+      C.push(new Array(n).fill(0));
+      for (let k = 0; k < n; k++) {
+        const a = A[i][k];
+        if (a === 0) continue;
+        for (let j = 0; j < n; j++) C[i][j] += a * B[k][j];
+      }
+    }
+    return C;
+  }
+
+  function solveLinear(A, Bm) {
+    const n = A.length, m = Bm[0].length;
+    const a = A.map((r, i) => r.concat(Bm[i]));
+    for (let c = 0; c < n; c++) {
+      let piv = c;
+      for (let r = c + 1; r < n; r++) if (Math.abs(a[r][c]) > Math.abs(a[piv][c])) piv = r;
+      [a[c], a[piv]] = [a[piv], a[c]];
+      for (let r = 0; r < n; r++) {
+        if (r === c) continue;
+        const fct = a[r][c] / a[c][c];
+        if (fct === 0) continue;
+        for (let j = c; j < n + m; j++) a[r][j] -= fct * a[c][j];
+      }
+    }
+    return a.map((r, i) => r.slice(n).map(v => v / a[i][i]));
+  }
+
+  // Matrix exponential, Pade(6) with scaling and squaring.
+  function expm(A) {
+    const n = A.length;
+    let norm = 0;
+    for (const r of A) norm = Math.max(norm, r.reduce((s, v) => s + Math.abs(v), 0));
+    const s = norm > 0.5 ? Math.ceil(Math.log2(norm / 0.5)) : 0;
+    const X = A.map(r => r.map(v => v / Math.pow(2, s)));
+    const I = A.map((r, i) => r.map((_, j) => (i === j ? 1 : 0)));
+    let c = 0.5;
+    let N = I.map((r, i) => r.map((v, j) => v + c * X[i][j]));
+    let D = I.map((r, i) => r.map((v, j) => v - c * X[i][j]));
+    let Xk = X;
+    const q = 6;
+    let positive = true;
+    for (let k = 2; k <= q; k++) {
+      c = c * (q - k + 1) / (k * (2 * q - k + 1));
+      Xk = matMul(X, Xk);
+      N = N.map((r, i) => r.map((v, j) => v + c * Xk[i][j]));
+      D = D.map((r, i) => r.map((v, j) => v + (positive ? c : -c) * Xk[i][j]));
+      positive = !positive;
+    }
+    let E = solveLinear(D, N);
+    for (let k = 0; k < s; k++) E = matMul(E, E);
+    return E;
+  }
+
+  function concentrationsAt(model, tSeconds) {
+    const E = expm(model.B.map(r => r.map(v => v * tSeconds)));
+    return E.map(r => r[0] * PAMPA_GEOMETRY.C0);
+  }
+
+  // Mass fractions in [donor, membrane, acceptor, headspace, plastic]. Headspace
+  // and plastic concentrations use the donor-volume convention of the original code.
+  function massFractions(model, x) {
+    const C0 = PAMPA_GEOMETRY.C0;
+    return [x[0] / C0, (x[1] * model.Lm) / (C0 * model.Ld), x[2] / C0, x[3] / C0, x[4] / C0];
+  }
+
+  function runPampa(p) {
+    const g = PAMPA_GEOMETRY;
+    const model = buildPampaModel(p);
+    const t = p.tHours * 3600;
+    const tau = p.tauMinutes * 60;
+    const x = concentrationsAt(model, t);
+    const [Cd, Cm, Ca] = x;
+    const C0 = g.C0;
+
+    const S = (g.Va / g.Vd) * (Ca / C0) + Cd / C0;
+    const arg = 1 - ((g.Va + g.Vd) / (g.Vd * S)) * (Ca / C0);
+    // Below ~1e-9 the log term is floating-point noise (the original eig-based
+    // code returns arbitrary values there too), so treat it as equilibrated.
+    let Pe = null, status = 'ok';
+    if (t <= tau) status = 'time-before-tau';
+    else if (!(arg > 1e-9)) status = 'equilibrated';
+    else Pe = (-2.303 * g.Va * g.Vd / ((g.Va + g.Vd) * g.Area * (t - tau))) * Math.log10(arg);
+
+    const Re = 100 * (Cm * model.Lm) / (C0 * model.Ld);
+    return { Pe, status, Re, fractions: massFractions(model, x), acceptorToDonor: Ca / Cd, model };
+  }
+
+  // ---------------- UI ----------------
+  const COMPARTMENTS = [
+    { key: 'donor', label: 'Donor', color: 'var(--series-donor)' },
+    { key: 'membrane', label: 'Membrane', color: 'var(--series-membrane)' },
+    { key: 'acceptor', label: 'Acceptor', color: 'var(--series-acceptor)' },
+    { key: 'air', label: 'Headspace', color: 'var(--series-air)' },
+    { key: 'plastic', label: 'Plastic', color: 'var(--series-plastic)' },
+  ];
+
+  const EXAMPLES = {
+    piroxicam:   { name: 'Piroxicam',   MW: 331.35, V: 2.2500, logKow: 2.1, logKoa: 9.71, pKaA: 5.2, pKaB: 0 },
+    propranolol: { name: 'Propranolol', MW: 259.34, V: 2.1480, logKow: 2.5, logKoa: 9.74, pKaA: 0,   pKaB: 9.5 },
+    tcipp:       { name: 'TCiPP',       MW: 327.57, V: 2.1833, logKow: 2.6, logKoa: 7.35, pKaA: 0,   pKaB: 0 },
+    ddt:         { name: 'DDT',         MW: 354.49, V: 2.2180, logKow: 6.4, logKoa: 9.87, pKaA: 0,   pKaB: 0 },
+  };
+  const EXAMPLE_CONDITIONS = { pH: 7.4, tHours: 10.5, deltaW: 0.2 };
+  const TAU_MINUTES = 19; // tao = 1140 s in the published code
+
+  const ids = ['name', 'MW', 'V', 'logKow', 'logKoa', 'pKaA', 'pKaB', 'pH', 'tHours', 'deltaW', 'rpm', 'uwlMode'];
+  const els = {};
+  ids.forEach(id => { els[id] = document.getElementById(id); });
+
+  // UWL thickness from stirring speed, Avdeef et al. (2004) power law as reported in
+  // Avdeef (2022): P_UWL = 23.1e-6 * f^0.709 cm/s, delta = D_water / P_UWL, capped
+  // at the 0.2 cm unstirred thickness. D_water uses the model's own estimate.
+  const UWL_UNSTIRRED_CM = 0.2;
+  function uwlFromStirring(MW, rpm) {
+    if (rpm === 0) return UWL_UNSTIRRED_CM;
+    const Dw = Math.pow(10, -4.13 - 0.453 * Math.log10(MW));
+    return Math.min(UWL_UNSTIRRED_CM, Dw / (23.1e-6 * Math.pow(rpm, 0.709)));
+  }
+
+  function syncUwlMode() {
+    const stirring = els.uwlMode.value === 'stirring';
+    document.getElementById('rpmField').style.display = stirring ? '' : 'none';
+    document.getElementById('deltaWField').style.display = stirring ? 'none' : '';
+  }
+  els.uwlMode.addEventListener('change', syncUwlMode);
+  const errBox = document.getElementById('errBox');
+  const results = document.getElementById('results');
+  const peBig = document.getElementById('peBig');
+  const peCaption = document.getElementById('peCaption');
+  const notice = document.getElementById('notice');
+
+  function readInputs() {
+    const num = id => parseFloat(els[id].value);
+    const stirring = els.uwlMode.value === 'stirring';
+    const p = {
+      MW: num('MW'), V: num('V'), logKow: num('logKow'), logKoa: num('logKoa'),
+      pKa_a: num('pKaA'), pKa_b: num('pKaB'), pH: num('pH'),
+      tHours: num('tHours'), deltaW: stirring ? 1 : num('deltaW'), tauMinutes: TAU_MINUTES,
+    };
+    const rpm = num('rpm');
+    if (Object.values(p).some(v => !isFinite(v)) || (stirring && !isFinite(rpm))) throw new Error('All numeric fields must be valid numbers.');
+    if (p.MW <= 0) throw new Error('Molar mass must be greater than 0.');
+    if (p.V <= 0) throw new Error('McGowan volume must be greater than 0.');
+    if (p.tHours <= 0) throw new Error('Incubation time must be greater than 0.');
+    if (stirring) {
+      if (rpm < 0) throw new Error('Stirring speed cannot be negative (use 0 for unstirred).');
+      p.deltaW = uwlFromStirring(p.MW, rpm);
+      p.rpm = rpm;
+    }
+    if (p.deltaW <= 0) throw new Error('Unstirred water layer thickness must be greater than 0.');
+    if (p.pKa_a < 0 || p.pKa_b < 0) throw new Error('pKa values cannot be negative (use 0 for none).');
+    return p;
+  }
+
+  function sci(v, digits) {
+    const e = Math.floor(Math.log10(Math.abs(v)));
+    const m = v / Math.pow(10, e);
+    return m.toFixed(digits) + ' &times; 10<sup>' + (e < 0 ? '&minus;' + (-e) : e) + '</sup>';
+  }
+  function pct(v) {
+    const x = 100 * v;
+    if (x < 0.0005) return '<0.001%';
+    if (x < 0.1) return x.toFixed(3) + '%';
+    return x.toFixed(1) + '%';
+  }
+  function swatch(color) { return '<span class="sw" style="background:' + color + '"></span>'; }
+
+  function renderTable(fractions, tHours) {
+    document.getElementById('tableHead').textContent = 'Mass at ' + fmtHours(tHours) + ' (% of dose)';
+    let html = '';
+    COMPARTMENTS.forEach((c, i) => {
+      html += '<tr><td>' + swatch(c.color) + c.label + '</td><td class="v">' + pct(fractions[i]) + '</td></tr>';
+    });
+    const total = fractions.reduce((a, b) => a + b, 0);
+    html += '<tr><td>Total</td><td class="v">' + (100 * total).toFixed(1) + '%</td></tr>';
+    document.getElementById('massTable').innerHTML = html;
+  }
+
+  function fmtUwl(p) {
+    const um = p.deltaW * 1e4;
+    const thick = um >= 1000 ? +p.deltaW.toFixed(3) + ' cm' : um.toFixed(0) + ' &micro;m';
+    let note = '';
+    if (p.rpm !== undefined) note = p.rpm === 0 ? ' (no stirring)' : ' (from ' + p.rpm + ' rpm)';
+    return 'a ' + thick + ' unstirred water layer' + note;
+  }
+
+  function fmtHours(h) {
+    if (h < 1) return (h * 60).toFixed(0) + ' min';
+    return (Math.round(h * 10) / 10) + ' h';
+  }
+
+  // ---- time-course chart ----
+  const svg = document.getElementById('chart');
+  const tip = document.getElementById('tip');
+  const chartShell = document.getElementById('chartShell');
+  const W = 620, H = 300, padL = 44, padR = 84, padT = 12, padB = 38;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  let series = null;
+
+  function niceTicks(max) {
+    const raw = max / 5, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 2.5, 5, 10].map(s => s * mag).find(s => max / s <= 6);
+    const ticks = [];
+    for (let v = 0; v <= max + 1e-9; v += step) ticks.push(v);
+    return ticks;
+  }
+
+  function renderChart(p) {
+    const model = buildPampaModel(p);
+    const n = 120, tMax = p.tHours;
+    const times = [], fr = [];
+    for (let i = 0; i <= n; i++) {
+      const th = tMax * i / n;
+      times.push(th);
+      fr.push(massFractions(model, concentrationsAt(model, th * 3600)));
+    }
+    series = { times, fr, tMax };
+
+    const x = th => padL + (th / tMax) * plotW;
+    const y = f => padT + (1 - f) * plotH;
+    let s = '';
+    [0, 0.25, 0.5, 0.75, 1].forEach(v => {
+      s += '<line x1="' + padL + '" x2="' + (padL + plotW) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--grid)" stroke-width="1"/>';
+      s += '<text class="tick" x="' + (padL - 8) + '" y="' + (y(v) + 3.5) + '" text-anchor="end">' + (v * 100) + '%</text>';
+    });
+    niceTicks(tMax).forEach(v => {
+      s += '<text class="tick" x="' + x(v) + '" y="' + (padT + plotH + 16) + '" text-anchor="middle">' + (Math.round(v * 100) / 100) + '</text>';
+    });
+    s += '<line x1="' + padL + '" x2="' + (padL + plotW) + '" y1="' + y(0) + '" y2="' + y(0) + '" stroke="var(--panel-edge)" stroke-width="1"/>';
+    s += '<text class="axis-title" x="' + (padL + plotW / 2) + '" y="' + (H - 4) + '" text-anchor="middle">Incubation time (h)</text>';
+
+    const tauH = p.tauMinutes / 60;
+    if (tauH > 0 && tauH < tMax) {
+      s += '<line x1="' + x(tauH) + '" x2="' + x(tauH) + '" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3,3"/>';
+      s += '<text class="tick" x="' + (x(tauH) + 4) + '" y="' + (padT + 10) + '">&tau;SS</text>';
+    }
+
+    COMPARTMENTS.forEach((c, k) => {
+      let d = '';
+      fr.forEach((f, i) => { d += (i ? 'L' : 'M') + x(times[i]).toFixed(1) + ',' + y(f[k]).toFixed(1); });
+      s += '<path d="' + d + '" fill="none" stroke="' + c.color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    });
+
+    // Direct end labels, nudged apart so they never overlap.
+    const last = fr[fr.length - 1];
+    const labels = COMPARTMENTS.map((c, k) => ({ c, yy: y(last[k]) })).sort((a, b) => a.yy - b.yy);
+    const minGap = 13;
+    for (let i = 1; i < labels.length; i++) labels[i].yy = Math.max(labels[i].yy, labels[i - 1].yy + minGap);
+    const overflow = labels[labels.length - 1].yy - (padT + plotH + 4);
+    if (overflow > 0) labels.forEach(l => { l.yy -= overflow; });
+    for (let i = labels.length - 2; i >= 0; i--) labels[i].yy = Math.min(labels[i].yy, labels[i + 1].yy - minGap);
+    labels.forEach(l => {
+      s += '<text x="' + (padL + plotW + 8) + '" y="' + (l.yy + 3.5) + '" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink-dim)">' + l.c.label + '</text>';
+    });
+
+    s += '<line id="xhair" x1="0" x2="0" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--ink-dim)" stroke-width="1" visibility="hidden"/>';
+    s += '<g id="xdots"></g>';
+    s += '<rect id="hit" x="' + padL + '" y="' + padT + '" width="' + plotW + '" height="' + plotH + '" fill="transparent"/>';
+    svg.innerHTML = s;
+
+    const hit = document.getElementById('hit');
+    hit.addEventListener('mousemove', onHover);
+    hit.addEventListener('mouseleave', hideTip);
+  }
+
+  function onHover(evt) {
+    const rect = svg.getBoundingClientRect();
+    const scale = W / rect.width;
+    const sx = (evt.clientX - rect.left) * scale;
+    const i = Math.max(0, Math.min(series.times.length - 1, Math.round(((sx - padL) / plotW) * (series.times.length - 1))));
+    const th = series.times[i], f = series.fr[i];
+    const xpx = padL + (th / series.tMax) * plotW;
+    const xh = document.getElementById('xhair');
+    xh.setAttribute('x1', xpx); xh.setAttribute('x2', xpx); xh.setAttribute('visibility', 'visible');
+    let dots = '';
+    COMPARTMENTS.forEach((c, k) => {
+      dots += '<circle cx="' + xpx + '" cy="' + (padT + (1 - f[k]) * plotH) + '" r="4" fill="' + c.color + '" stroke="var(--panel)" stroke-width="2"/>';
+    });
+    document.getElementById('xdots').innerHTML = dots;
+    let html = '<b>' + fmtHours(th) + '</b>';
+    COMPARTMENTS.forEach((c, k) => { html += '<br>' + swatch(c.color) + c.label + ': ' + pct(f[k]); });
+    tip.innerHTML = html;
+    const shellRect = chartShell.getBoundingClientRect();
+    let left = evt.clientX - shellRect.left + 14;
+    if (left + 190 > shellRect.width) left = evt.clientX - shellRect.left - 190;
+    tip.style.left = left + 'px';
+    tip.style.top = Math.max(0, evt.clientY - shellRect.top - 40) + 'px';
+    tip.classList.add('show');
+  }
+  function hideTip() {
+    tip.classList.remove('show');
+    const xh = document.getElementById('xhair');
+    if (xh) xh.setAttribute('visibility', 'hidden');
+    const d = document.getElementById('xdots');
+    if (d) d.innerHTML = '';
+  }
+
+  function run() {
+    errBox.style.display = 'none';
+    try {
+      const p = readInputs();
+      const r = runPampa(p);
+      const name = els.name.value.trim() || 'this chemical';
+
+      notice.style.display = 'none';
+      peBig.classList.remove('na');
+      if (r.status === 'ok') {
+        peBig.innerHTML = sci(r.Pe, 2) + '<span class="unit-big">cm/s</span>';
+        peCaption.innerHTML = 'log P<sub>e</sub> = ' + Math.log10(r.Pe).toFixed(2) + ' &mdash; the permeability a laboratory PAMPA would report for ' + escapeHtml(name) + ' after ' + fmtHours(p.tHours) + ' of incubation, with ' + fmtUwl(p) + '.';
+        if (r.acceptorToDonor > 0.9) {
+          notice.innerHTML = '<b>Near equilibrium:</b> the acceptor has reached ' + (100 * r.acceptorToDonor).toFixed(0) + '% of the donor concentration, so P<sub>e</sub> is very sensitive to small concentration differences and Eq. 1&rsquo;s steady-state assumption may not hold. A shorter incubation time is more reliable.';
+          notice.style.display = 'block';
+        }
+      } else {
+        peBig.classList.add('na');
+        if (r.status === 'equilibrated') {
+          peBig.textContent = 'Not calculable';
+          peCaption.innerHTML = 'The donor and acceptor have equilibrated within ' + fmtHours(p.tHours) + ' with ' + fmtUwl(p) + ', so Eq. 1 cannot be evaluated. Try a shorter incubation time or a thicker unstirred water layer (slower stirring).';
+        } else {
+          peBig.textContent = 'Not calculable';
+          peCaption.innerHTML = 'The incubation time must be longer than the lag time &tau;<sub>SS</sub> (' + p.tauMinutes + ' min).';
+        }
+      }
+
+      document.getElementById('statRe').textContent = r.Re < 0.1 ? r.Re.toFixed(3) + '%' : r.Re.toFixed(1) + '%';
+      document.getElementById('statRatio').textContent = r.acceptorToDonor.toFixed(3);
+      const fn = r.model.f;
+      document.getElementById('statF').textContent = fn >= 0.001 ? fn.toFixed(3) : fn.toExponential(1);
+
+      renderTable(r.fractions, p.tHours);
+      results.style.display = 'block';
+      renderChart(p);
+    } catch (e) {
+      errBox.textContent = e.message;
+      errBox.style.display = 'block';
+      results.style.display = 'none';
+    }
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+
+  function loadExample(key) {
+    const e = EXAMPLES[key];
+    els.name.value = e.name;
+    ['MW', 'V', 'logKow', 'logKoa', 'pKaA', 'pKaB'].forEach(k => { els[k].value = e[k]; });
+    Object.entries(EXAMPLE_CONDITIONS).forEach(([k, v]) => { els[k].value = v; });
+    els.uwlMode.value = 'thickness';
+    syncUwlMode();
+    run();
+  }
+
+  function trackEvent(path) {
+    if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: path, event: true });
+  }
+
+  document.getElementById('calcBtn').addEventListener('click', function () { trackEvent('pampa-calculate'); run(); });
+  document.querySelectorAll('[data-example]').forEach(btn => {
+    btn.addEventListener('click', () => loadExample(btn.getAttribute('data-example')));
+  });
+
+  loadExample('ddt');
+
+})();
+</script>
+</body>
+</html>
